@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database.connection import get_db
+from backend.models.telemetry import Telemetry
+from ml.predict import predict_metro_telemetry, predict_telemetry
 from backend.schemas.prediction import (
+    MetroTelemetryInput,
     PredictionCreate,
     PredictionUpdate,
     PredictionResponse,
@@ -20,6 +23,54 @@ router = APIRouter(
     prefix="/predictions",
     tags=["Predictions"]
 )
+
+
+@router.post("/generate-metro", response_model=PredictionResponse)
+def generate_metro_prediction(
+    telemetry: MetroTelemetryInput,
+    db: Session = Depends(get_db),
+):
+    values = telemetry.model_dump(exclude={"machine_id"})
+    prediction = predict_metro_telemetry(values)
+    return create_prediction(
+        db,
+        PredictionCreate(machine_id=telemetry.machine_id, **prediction),
+    )
+
+
+@router.post("/generate/{machine_id}", response_model=PredictionResponse)
+def generate_prediction(machine_id: int, db: Session = Depends(get_db)):
+    telemetry = (
+        db.query(Telemetry)
+        .filter(Telemetry.machine_id == machine_id)
+        .order_by(Telemetry.id.desc())
+        .first()
+    )
+    if telemetry is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No telemetry found for this machine",
+        )
+
+    values = {
+        column: getattr(telemetry, column)
+        for column in (
+            "temperature",
+            "pressure",
+            "vibration",
+            "voltage",
+            "current",
+            "power",
+            "rpm",
+            "humidity",
+            "oil_level",
+        )
+    }
+    prediction = predict_telemetry(values)
+    return create_prediction(
+        db,
+        PredictionCreate(machine_id=machine_id, **prediction),
+    )
 
 
 @router.get("/", response_model=list[PredictionResponse])

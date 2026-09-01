@@ -24,3 +24,23 @@ class PredictionResponse(PredictionBase):
 
     class Config:
         from_attributes = True
+
+
+class MetroTelemetryInput(BaseModel):
+    machine_id: int
+    timestamp: str
+    TP2: float
+    TP3: float
+    H1: float
+    DV_pressure: float
+    Reservoirs: float
+    Oil_temperature: float
+    Motor_current: float
+    COMP: float
+    DV_eletric: float
+    Towers: float
+    MPG: float
+    LPS: float
+    Pressure_switch: float
+    Oil_level: float
+    Caudal_impulses: float

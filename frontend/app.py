@@ -2,13 +2,15 @@
 
 Run alongside the FastAPI service:
     uvicorn backend.api.main:app --reload
-    streamlit run app.py
+    streamlit run frontend/app.py
 """
 
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
+import sys
+from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -18,12 +20,17 @@ import requests
 import streamlit as st
 
 
+project_root = str(Path(__file__).resolve().parents[1])
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+
 st.set_page_config(
     page_title="FactoryOps AI | Operations Console",
-    page_icon="⚙️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
+
 
 API_BASE_URL = os.getenv("FACTORYOPS_API_URL", "http://127.0.0.1:8000").rstrip("/")
 REQUEST_TIMEOUT_SECONDS = 4
@@ -37,76 +44,339 @@ RESOURCE_LABELS = {
     "inventory": "Inventory",
     "notifications": "Notifications",
 }
-
-# Demo accounts keep the presentation self-contained. Override the administrator
-# account in the environment for shared demonstrations.
-DEMO_USERS = {
+DEFAULT_DEMO_USERS = {
     os.getenv("FACTORYOPS_ADMIN_USER", "admin").strip().lower(): {
         "password": os.getenv("FACTORYOPS_ADMIN_PASSWORD", "FactoryOps@123"),
-        "name": "System Administrator",
-        "role": "Administrator",
+        "name": "Operations Lead",
+        "role": "System Administrator",
     },
-    "operator": {"password": "Operator@123", "name": "Operations User", "role": "Operator"},
-    "maintenance": {"password": "Maintenance@123", "name": "Maintenance User", "role": "Maintenance"},
+    "operator": {
+        "password": "Operator@123",
+        "name": "Operations User",
+        "role": "Operator",
+    },
+    "maintenance": {
+        "password": "Maintenance@123",
+        "name": "Maintenance User",
+        "role": "Maintenance",
+    },
 }
 
-
+DEMO_USER_CREDENTIALS = "admin / operator / maintenance"
+PAGES = [
+    "Command Center",
+    "Fleet Explorer",
+    "Telemetry Lab",
+    "Predictions & Incidents",
+    "Maintenance & Inventory",
+    "Data Management",
+]
 def inject_styles() -> None:
-    """Apply a consistent, responsive operations-console visual system."""
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
         :root {
-            --page: #080d16; --surface: #101927; --surface-2: #172235;
-            --border: #273650; --text: #f3f7ff; --muted: #9aaac4;
-            --blue: #70a7ff; --cyan: #5bd6d1; --green: #65cf98;
-            --amber: #ffc46b; --red: #ff747d; --purple: #bca5ff;
+            --page: #f6f1e8;
+            --surface: #fffaf2;
+            --surface-2: #efe5d7;
+            --surface-3: #e5d6c3;
+            --border: #d8c6af;
+            --text: #2e241b;
+            --muted: #756454;
+            --accent: #b65f3c;
+            --accent-2: #7e8f5a;
+            --accent-3: #d39b52;
+            --success: #6c8751;
+            --warning: #d39b52;
+            --danger: #b84d49;
         }
-        .stApp { background: var(--page); color: var(--text); font-family: 'DM Sans', sans-serif; }
-        .block-container { max-width: 1550px; padding: 1.35rem 2rem 2.5rem; }
-        [data-testid='stHeader'] { background: transparent; }
-        [data-testid='stToolbar'] { visibility: hidden; }
-        [data-testid='stSidebar'] { background: #0b1320; border-right: 1px solid var(--border); }
-        [data-testid='stSidebar'] * { color: var(--text); }
-        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.025em; }
-        h1 { font-size: 2rem !important; margin-bottom: .15rem !important; }
-        h2 { font-size: 1.3rem !important; margin-top: .4rem !important; }
-        .hero { padding: 1.35rem 1.5rem; border: 1px solid var(--border); border-radius: 16px;
-                background: radial-gradient(circle at 88% 15%, rgba(112,167,255,.18), transparent 28%), linear-gradient(120deg, #121e30, #0e1725); }
-        .eyebrow { color: var(--cyan); font-size: .72rem; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
-        .subtle { color: var(--muted); font-size: .9rem; }
-        .pill { display: inline-block; padding: .24rem .62rem; border-radius: 999px; font-size: .73rem; font-weight: 700; margin-right: .3rem; }
-        .pill-good { color: #86e8b0; background: rgba(101,207,152,.12); border: 1px solid rgba(101,207,152,.32); }
-        .pill-warn { color: #ffd48c; background: rgba(255,196,107,.12); border: 1px solid rgba(255,196,107,.32); }
-        .pill-bad { color: #ff9ba1; background: rgba(255,116,125,.12); border: 1px solid rgba(255,116,125,.32); }
-        .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: .95rem 1.05rem; min-height: 112px; }
-        .metric-label { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .67rem; font-weight: 700; }
-        .metric-value { color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: 1.75rem; font-weight: 700; margin: .2rem 0; }
-        .metric-detail { color: var(--muted); font-size: .78rem; }
-        .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; }
-        .machine-card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--blue); border-radius: 10px; padding: .9rem 1rem; min-height: 166px; }
-        .machine-card.warning { border-left-color: var(--amber); }
-        .machine-card.critical { border-left-color: var(--red); }
-        .machine-card h4 { margin: 0; font-family: 'Space Grotesk', sans-serif; }
-        .machine-card p { color: var(--muted); font-size: .78rem; margin: .25rem 0 .75rem; }
-        .stButton > button, .stDownloadButton > button { border-radius: 8px; border-color: #3b4e70; background: #1b2a43; color: var(--text); font-weight: 600; }
-        .stButton > button:hover, .stDownloadButton > button:hover { border-color: var(--blue); color: white; }
-        div[data-testid='stMetric'] { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .65rem .85rem; }
-        div[data-testid='stMetricLabel'] { color: var(--muted); }
-        div[data-testid='stMetricValue'] { color: var(--text); }
-        div[data-baseweb='select'] > div, .stTextInput input, .stNumberInput input { background: #111d2e !important; border-color: #324462 !important; }
-        .stTabs [data-baseweb='tab-list'] { gap: .5rem; }
-        .stTabs [data-baseweb='tab'] { border-radius: 8px 8px 0 0; color: var(--muted); }
-        .stTabs [aria-selected='true'] { color: var(--blue) !important; }
-        .login-shell { max-width: 1080px; margin: 7vh auto 0; }
-        .login-copy { padding: 2rem 2.2rem 1.5rem 0; }
-        .login-copy h1 { font-size: 2.7rem !important; line-height: 1.04; }
-        .login-card { background: linear-gradient(145deg, #15233a, #0e1725); border: 1px solid #344867;
-                      border-radius: 18px; padding: 1.5rem; box-shadow: 0 22px 60px rgba(0,0,0,.3); }
-        .login-mark { width: 42px; height: 42px; border-radius: 11px; display: inline-grid; place-items: center;
-                      background: rgba(112,167,255,.16); border: 1px solid rgba(112,167,255,.45); color: var(--blue); font-size: 1.3rem; }
-        .user-panel { background: #121f32; border: 1px solid var(--border); border-radius: 10px; padding: .7rem .75rem; margin-bottom: .7rem; }
+        .stApp {
+            background:
+                radial-gradient(circle at top right, rgba(211, 155, 82, 0.18), transparent 22%),
+                radial-gradient(circle at bottom left, rgba(126, 143, 90, 0.12), transparent 28%),
+                var(--page);
+            color: var(--text);
+            font-family: 'Manrope', sans-serif;
+        }
+        .block-container {
+            max-width: 1420px;
+            padding: 1.5rem 2rem 3.5rem;
+        }
+        [data-testid='stSidebar'],
+        [data-testid='collapsedControl'] {
+            display: none;
+        }
+        [data-testid='stHeader'] {
+            background: rgba(246, 241, 232, 0.82);
+            backdrop-filter: blur(10px);
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+        .hero,
+        .topbar,
+        .filter-shell,
+        .login-panel,
+        .auth-note {
+            background: rgba(255, 250, 242, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 18px 45px rgba(71, 54, 37, 0.08);
+        }
+        .hero {
+            padding: 1.5rem 1.6rem;
+            margin-bottom: 1.5rem;
+        }
+        .eyebrow {
+            color: var(--accent);
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .subtle,
+        .subtle p,
+        .stCaption {
+            color: var(--text) !important;
+            opacity: 0.75;
+        }
+        .pill {
+            display: inline-block;
+            padding: 0.26rem 0.68rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-right: 0.35rem;
+            border: 1px solid transparent;
+        }
+        .pill-good {
+            color: #456233;
+            background: rgba(126, 143, 90, 0.12);
+            border-color: rgba(126, 143, 90, 0.3);
+        }
+        .pill-warn {
+            color: #8e6426;
+            background: rgba(211, 155, 82, 0.14);
+            border-color: rgba(211, 155, 82, 0.3);
+        }
+        .pill-bad {
+            color: #923c38;
+            background: rgba(184, 77, 73, 0.13);
+            border-color: rgba(184, 77, 73, 0.28);
+        }
+        .metric-card,
+        .machine-card,
+        .section-card,
+        div[data-testid='stMetric'] {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+        }
+        .metric-card {
+            padding: 1.2rem 1.3rem;
+            min-height: 124px;
+        }
+        .metric-label,
+        div[data-testid='stMetricLabel'] p {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.68rem;
+            font-weight: 800;
+        }
+        .metric-value,
+        div[data-testid='stMetricValue'] {
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.82rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        .metric-detail {
+            color: var(--muted);
+            font-size: 0.79rem;
+            line-height: 1.5;
+        }
+        .machine-card {
+            padding: 1.2rem 1.2rem;
+            min-height: auto;
+            border-left: 4px solid var(--accent-2);
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .machine-card-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+        .machine-card-subtitle {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+        .machine-card-metrics {
+            font-size: 0.8rem;
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .machine-card.warning {
+            border-left-color: var(--warning);
+        }
+        .machine-card.critical {
+            border-left-color: var(--danger);
+        }
+        .topbar {
+            padding: 1.1rem 1.3rem;
+            margin: 0.3rem 0 1.3rem;
+            background: rgba(255, 250, 242, 0.72);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 10px 24px rgba(71, 54, 37, 0.04);
+        }
+        .brand-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: flex-end;
+            margin-bottom: 0.9rem;
+        }
+        .brand-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 700;
+        }
+        .user-chip {
+            text-align: right;
+            font-size: 0.9rem;
+        }
+        .user-chip .role {
+            display: block;
+            margin-top: 0.2rem;
+            color: var(--accent);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+        .filter-shell {
+            padding: 1.2rem 1.3rem 0.4rem;
+            margin-bottom: 1.5rem;
+        }
+        .login-wrap {
+            max-width: 720px;
+            margin: 10vh auto 0;
+        }
+        .login-intro {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .login-intro h1 {
+            font-size: 2.9rem !important;
+            margin-bottom: 0.35rem !important;
+        }
+        .login-panel {
+            padding: 1.8rem;
+        }
+        .auth-note {
+            margin-top: 1.3rem;
+            padding: 1rem 1.2rem;
+        }
+        .auth-note p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+        .stButton > button,
+        .stDownloadButton > button,
+        .stFormSubmitButton > button {
+            border-radius: 12px;
+            border: 1px solid #9a6a4b;
+            background: var(--accent);
+            color: #fffaf5;
+            font-weight: 700;
+            min-height: 2.7rem;
+        }
+        .stButton > button:hover,
+        .stDownloadButton > button:hover,
+        .stFormSubmitButton > button:hover {
+            background: #985032;
+            border-color: #985032;
+            color: #fffaf5;
+        }
+        .stSelectbox,
+        .stSelectbox > div,
+        div[data-baseweb='select'] > div:first-child,
+        .stTextInput input,
+        .stNumberInput input,
+        .stTextArea textarea {
+            background: #fffaf4 !important;
+            border-color: var(--border) !important;
+            color: var(--text) !important;
+            border-radius: 12px !important;
+        }
+        .stSelectbox,
+        .stSelectbox > div {
+            width: 100% !important;
+        }
+        .stSelectbox [data-baseweb='popover'] {
+            z-index: 9999;
+        }
+        .stTextInput label,
+        .stNumberInput label,
+        .stTextArea label,
+        .stSelectbox label {
+            color: var(--text) !important;
+            font-weight: 600 !important;
+        }
+        .stTabs [data-baseweb='tab-list'] {
+            gap: 0.45rem;
+        }
+        .stTabs [data-baseweb='tab'] {
+            background: rgba(229, 214, 195, 0.35);
+            border-radius: 10px 10px 0 0;
+            color: var(--text) !important;
+            padding: 0.55rem 0.9rem;
+            font-weight: 600;
+        }
+        .stTabs [aria-selected='true'] {
+            color: var(--text) !important;
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-bottom: none !important;
+            font-weight: 700;
+        }
+        div[role="radiogroup"] {
+            gap: 0.55rem;
+        }
+        div[role="radiogroup"] label {
+            background: rgba(229, 214, 195, 0.35);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+        }
+        div[role="radiogroup"] label:has(input:checked) {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        div[role="radiogroup"] label:has(input:checked) p {
+            color: #fffaf5 !important;
+        }
+        div[data-testid='stDataFrame'] {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .stAlert {
+            border-radius: 14px;
+        }
+        .section-note {
+            color: var(--muted);
+            font-size: 0.84rem;
+            margin: 0.2rem 0 1rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -118,48 +388,96 @@ def api_url(resource: str = "") -> str:
 
 
 def initialise_session() -> None:
-    """Create session keys without persisting a password in browser state."""
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     if "current_user" not in st.session_state:
         st.session_state.current_user = {}
+    if "demo_users" not in st.session_state:
+        st.session_state.demo_users = deepcopy(DEFAULT_DEMO_USERS)
+    if "active_page" not in st.session_state:
+        st.session_state.active_page = PAGES[0]
+
+
+def authenticate(username: str, password: str) -> bool:
+    account = st.session_state.demo_users.get(username.strip().lower())
+    if account and password == account["password"]:
+        st.session_state.authenticated = True
+        st.session_state.current_user = {
+            "username": username.strip(),
+            "name": account["name"],
+            "role": account["role"],
+        }
+        return True
+    return False
+
+
+def create_account(name: str, username: str, password: str, role: str) -> tuple[bool, str]:
+    clean_username = username.strip().lower()
+    if not name.strip() or not clean_username or not password.strip():
+        return False, "Name, username, and password are required."
+    if clean_username in st.session_state.demo_users:
+        return False, "That username already exists."
+    st.session_state.demo_users[clean_username] = {
+        "password": password,
+        "name": name.strip(),
+        "role": role,
+    }
+    authenticate(clean_username, password)
+    return True, "Account created successfully."
 
 
 def render_login_page() -> None:
-    """Show the presentation login gate before operational data is visible."""
-    st.markdown('<div class="login-shell">', unsafe_allow_html=True)
-    left, right = st.columns([1.05, 0.95], gap="large")
-    with left:
+    st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="login-intro">
+            <div class="eyebrow">FactoryOps Access</div>
+            <h1>Operations clarity without the clutter.</h1>
+            <p class="subtle">Monitor telemetry, predictions, incidents, maintenance, and inventory from one production-focused console.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    left, middle, right = st.columns([1, 1.25, 1], gap="large")
+    with middle:
+        st.markdown('<div class="login-panel">', unsafe_allow_html=True)
+        sign_in_tab, sign_up_tab = st.tabs(["Sign In", "Sign Up"])
+        with sign_in_tab:
+            with st.form("factoryops_login", clear_on_submit=False):
+                username = st.text_input("Username", placeholder="Enter your username", autocomplete="username")
+                password = st.text_input("Password", type="password", placeholder="Enter your password", autocomplete="current-password")
+                submitted = st.form_submit_button("Sign in", use_container_width=True)
+            if submitted:
+                if authenticate(username, password):
+                    st.rerun()
+                st.error("Incorrect username or password.")
+        with sign_up_tab:
+            with st.form("factoryops_signup", clear_on_submit=False):
+                name = st.text_input("Full name", placeholder="Enter your full name")
+                username = st.text_input("Choose a username", placeholder="Create a username")
+                password = st.text_input("Create a password", type="password")
+                role = st.selectbox("Role", ["Operator", "Maintenance", "System Administrator"])
+                created = st.form_submit_button("Create account", use_container_width=True)
+            if created:
+                ok, message = create_account(name, username, password, role)
+                if ok:
+                    st.success(message)
+                    st.rerun()
+                st.error(message)
+        st.markdown("</div>", unsafe_allow_html=True)
         st.markdown(
-            '''<div class="login-copy"><div class="eyebrow">Secure operations access</div>
-            <h1>Make every maintenance decision count.</h1>
-            <p class="subtle">FactoryOps AI unifies live telemetry, risk signals, incidents, maintenance work and inventory readiness in one operations console.</p>
-            <div style="margin-top:1.35rem"><span class="pill pill-good">Live monitoring</span><span class="pill pill-warn">Risk prioritization</span><span class="pill pill-good">Maintenance planning</span></div></div>''',
+            """
+            <div class="auth-note">
+                <p>Sign in with your assigned credentials or create a local demo account. All accounts are stored locally in your current session.</p>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-    with right:
-        st.markdown('<div class="login-card"><div class="login-mark">⚙</div><h2 style="margin-top:.85rem">Sign in to FactoryOps</h2><p class="subtle">Use your assigned operations account to continue.</p></div>', unsafe_allow_html=True)
-        with st.form("factoryops_login", clear_on_submit=False):
-            username = st.text_input("Username", placeholder="Enter your username", autocomplete="username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password", autocomplete="current-password")
-            submitted = st.form_submit_button("Sign in", use_container_width=True)
-        if submitted:
-            account = DEMO_USERS.get(username.strip().lower())
-            if account and password == account["password"]:
-                st.session_state.authenticated = True
-                st.session_state.current_user = {"username": username.strip(), "name": account["name"], "role": account["role"]}
-                st.rerun()
-            else:
-                st.error("Incorrect username or password.")
-        with st.expander("Demo access details"):
-            st.code("admin / FactoryOps@123", language=None)
-            st.caption("Other demo roles: operator / Operator@123, maintenance / Maintenance@123")
     st.markdown("</div>", unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=15, show_spinner=False)
 def get_records(resource: str) -> list[dict[str, Any]]:
-    """Fetch a collection endpoint without breaking the UI during an outage."""
     try:
         response = requests.get(api_url(f"{resource}/"), timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
@@ -181,7 +499,6 @@ def get_health() -> dict[str, Any]:
 
 
 def send_record(method: str, resource: str, payload: dict[str, Any], record_id: int | None = None) -> tuple[bool, str]:
-    """Perform a state-changing API request and invalidate stale dashboard data."""
     suffix = f"/{record_id}" if record_id is not None else "/"
     try:
         response = requests.request(
@@ -228,17 +545,22 @@ def risk_state(value: float) -> str:
 
 def state_badge(state: str) -> str:
     state = str(state).lower()
-    css = "pill-good" if state in {"running", "active", "normal", "healthy", "completed", "closed", "resolved"} else "pill-bad" if state in {"critical", "maintenance", "inactive", "open", "in progress"} else "pill-warn"
+    css = (
+        "pill-good"
+        if state in {"running", "active", "normal", "healthy", "completed", "closed", "resolved"}
+        else "pill-bad"
+        if state in {"critical", "maintenance", "inactive", "open", "in progress"}
+        else "pill-warn"
+    )
     return f'<span class="pill {css}">{state.title()}</span>'
 
 
-def format_table(frame: pd.DataFrame, columns: Iterable[str]) -> pd.DataFrame:
+def format_table(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     present = [column for column in columns if column in frame]
     return frame[present] if present else frame
 
 
 def latest_telemetry(telemetry: pd.DataFrame) -> pd.DataFrame:
-    """Use the greatest record ID as the newest reading until timestamps are added."""
     if telemetry.empty or "machine_id" not in telemetry:
         return telemetry.copy()
     ordered = telemetry.sort_values("id") if "id" in telemetry else telemetry
@@ -250,38 +572,146 @@ def build_machine_view(machines: pd.DataFrame, telemetry: pd.DataFrame, predicti
     if machine_view.empty:
         return machine_view
     latest = latest_telemetry(telemetry)
-    telemetry_columns = [column for column in ["machine_id", "temperature", "vibration", "power", "rpm", "health_score", "failure_probability"] if column in latest]
+    telemetry_columns = [
+        column
+        for column in ["machine_id", "temperature", "vibration", "power", "rpm", "health_score", "failure_probability"]
+        if column in latest
+    ]
     if telemetry_columns:
         machine_view = machine_view.merge(latest[telemetry_columns], on="machine_id", how="left", suffixes=("", "_telemetry"))
     if not predictions.empty and "machine_id" in predictions:
         latest_predictions = predictions.sort_values("id").drop_duplicates("machine_id", keep="last") if "id" in predictions else predictions
-        prediction_columns = [column for column in ["machine_id", "failure_probability", "health_score", "predicted_days"] if column in latest_predictions]
-        machine_view = machine_view.merge(latest_predictions[prediction_columns], on="machine_id", how="left", suffixes=("_telemetry", "_prediction"))
+        prediction_columns = [
+            column
+            for column in ["machine_id", "failure_probability", "health_score", "predicted_days"]
+            if column in latest_predictions
+        ]
+        machine_view = machine_view.merge(
+            latest_predictions[prediction_columns],
+            on="machine_id",
+            how="left",
+            suffixes=("_telemetry", "_prediction"),
+        )
     machine_view["temperature"] = number_column(machine_view, "temperature")
     risk_columns = [column for column in machine_view if column.startswith("failure_probability")]
-    if risk_columns:
-        machine_view["failure_probability_display"] = machine_view[risk_columns].bfill(axis=1).iloc[:, 0].fillna(0.0)
-    else:
-        machine_view["failure_probability_display"] = 0.0
+    machine_view["failure_probability_display"] = (
+        machine_view[risk_columns].bfill(axis=1).iloc[:, 0].fillna(0.0) if risk_columns else 0.0
+    )
     health_columns = [column for column in machine_view if column.startswith("health_score")]
-    if health_columns:
-        machine_view["health_score_display"] = machine_view[health_columns].bfill(axis=1).iloc[:, 0].fillna(0.0)
-    else:
-        machine_view["health_score_display"] = 0.0
+    machine_view["health_score_display"] = (
+        machine_view[health_columns].bfill(axis=1).iloc[:, 0].fillna(0.0) if health_columns else 0.0
+    )
     machine_view["condition"] = machine_view.apply(
-        lambda row: "critical" if risk_state(float(row["failure_probability_display"])) == "critical" or temperature_state(float(row["temperature"])) == "critical" else "warning" if risk_state(float(row["failure_probability_display"])) == "warning" or temperature_state(float(row["temperature"])) == "warning" else "normal",
+        lambda row: "critical"
+        if risk_state(float(row["failure_probability_display"])) == "critical"
+        or temperature_state(float(row["temperature"])) == "critical"
+        else "warning"
+        if risk_state(float(row["failure_probability_display"])) == "warning"
+        or temperature_state(float(row["temperature"])) == "warning"
+        else "normal",
         axis=1,
     )
     return machine_view
 
 
-def filters_sidebar(machine_view: pd.DataFrame) -> tuple[list[str], list[str], str]:
-    st.sidebar.markdown("### Fleet filters")
+def page_header(title: str, description: str, health: dict[str, Any]) -> None:
+    state = "Online" if health else "API unavailable"
+    badge = "pill-good" if health else "pill-bad"
+    st.markdown(
+        f"""
+        <div class="hero">
+            <div class="eyebrow">FactoryOps Operations Console</div>
+            <h1>{title}</h1>
+            <div class="subtle">{description}</div>
+            <div style="margin-top:0.95rem"><span class="pill {badge}">{state}</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_metric_card(label: str, value: str, detail: str) -> None:
+    st.markdown(
+        f'<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value">{value}</div><div class="metric-detail">{detail}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def chart_layout(height: int = 400) -> dict[str, Any]:
+    return {
+        "height": height,
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"color": "#2e241b", "family": "Manrope"},
+        "margin": {"l": 10, "r": 10, "t": 35, "b": 18},
+        "legend": {"orientation": "h", "y": 1.12},
+    }
+
+
+def render_top_navigation() -> str:
+    user = st.session_state.current_user
+    st.markdown('<div class="topbar">', unsafe_allow_html=True)
+    left, right = st.columns([1.55, 0.8], gap="large")
+    with left:
+        st.markdown(
+            f"""
+            <div class="brand-row">
+                <div>
+                    <div class="eyebrow">FactoryOps</div>
+                    <div class="brand-title">Predictive Maintenance Console</div>
+                </div>
+                <div class="user-chip">
+                    {user.get("name", "Signed-in user")}
+                    <span class="role">{user.get("role", "User")}</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        current = PAGES.index(st.session_state.active_page)
+        page = st.radio(
+            "Navigation",
+            PAGES,
+            index=current,
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+        st.session_state.active_page = page
+    with right:
+        st.write("")
+        st.write("")
+        action_left, action_right = st.columns(2, gap="small")
+        with action_left:
+            if st.button("Refresh data", use_container_width=True):
+                get_records.clear()
+                get_health.clear()
+                st.rerun()
+        with action_right:
+            if st.button("Sign out", use_container_width=True):
+                st.session_state.authenticated = False
+                st.session_state.current_user = {}
+                st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+    return st.session_state.active_page
+
+
+def render_search_filter_section(machine_view: pd.DataFrame) -> tuple[list[str], list[str], str]:
+    st.markdown('<div class="filter-shell">', unsafe_allow_html=True)
+    st.markdown("#### Search And Filter")
+    st.markdown(
+        f'<div class="section-note">Browse {len(machine_view)} registered assets from one combined search and filter bar.</div>',
+        unsafe_allow_html=True,
+    )
+    left, middle, right = st.columns([1.6, 1, 1], gap="large")
     locations = sorted(machine_view["location"].dropna().astype(str).unique()) if "location" in machine_view else []
     statuses = sorted(machine_view["status"].dropna().astype(str).unique()) if "status" in machine_view else []
-    selected_locations = st.sidebar.multiselect("Locations", locations, placeholder="All locations")
-    selected_statuses = st.sidebar.multiselect("Machine status", statuses, placeholder="All statuses")
-    query = st.sidebar.text_input("Search machines", placeholder="Name, department, location…")
+    with left:
+        query = st.text_input("Search machines", placeholder="Search by machine name, department, or location")
+    with middle:
+        selected_locations = st.multiselect("Locations", locations, placeholder="All locations")
+    with right:
+        selected_statuses = st.multiselect("Machine status", statuses, placeholder="All statuses")
+    st.markdown("</div>", unsafe_allow_html=True)
     return selected_locations, selected_statuses, query
 
 
@@ -294,31 +724,23 @@ def apply_filters(machine_view: pd.DataFrame, locations: list[str], statuses: li
     if query:
         searchable = [column for column in ["machine_name", "department", "location"] if column in filtered]
         if searchable:
-            mask = filtered[searchable].fillna("").astype(str).apply(lambda column: column.str.contains(query, case=False, na=False)).any(axis=1)
+            mask = (
+                filtered[searchable]
+                .fillna("")
+                .astype(str)
+                .apply(lambda column: column.str.contains(query, case=False, na=False))
+                .any(axis=1)
+            )
             filtered = filtered[mask]
     return filtered
 
 
-def page_header(title: str, description: str, health: dict[str, Any]) -> None:
-    state = "Online" if health else "API unavailable"
-    badge = "pill-good" if health else "pill-bad"
-    st.markdown(
-        f'''<div class="hero"><div class="eyebrow">FactoryOps AI · Operations Console</div>
-        <h1>{title}</h1><div class="subtle">{description}</div>
-        <div style="margin-top:.85rem"><span class="pill {badge}">{state}</span>
-        <span class="subtle">API: {API_BASE_URL}</span></div></div>''',
-        unsafe_allow_html=True,
-    )
-
-
-def render_metric_card(label: str, value: str, detail: str) -> None:
-    st.markdown(
-        f'<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value">{value}</div><div class="metric-detail">{detail}</div></div>',
-        unsafe_allow_html=True,
-    )
-
-
-def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, incidents: pd.DataFrame, maintenance: pd.DataFrame) -> None:
+def render_command_center(
+    machine_view: pd.DataFrame,
+    telemetry: pd.DataFrame,
+    incidents: pd.DataFrame,
+    maintenance: pd.DataFrame,
+) -> None:
     st.markdown("#### Real-time operational picture")
     total = len(machine_view)
     running = int(machine_view.get("status", pd.Series(dtype=str)).astype(str).str.lower().eq("running").sum())
@@ -337,7 +759,9 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
     with metrics[3]:
         render_metric_card("Watch list", str(warning), "Assets outside normal thresholds")
     with metrics[4]:
-        open_incidents = int(incidents.get("status", pd.Series(dtype=str)).astype(str).str.lower().isin(["open", "in progress"]).sum())
+        open_incidents = int(
+            incidents.get("status", pd.Series(dtype=str)).astype(str).str.lower().isin(["open", "in progress"]).sum()
+        )
         render_metric_card("Open incidents", str(open_incidents), "Open and in-progress incident records")
 
     left, right = st.columns([1.35, 1], gap="large")
@@ -350,11 +774,11 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
                 with column:
                     condition = str(machine.get("condition", "normal"))
                     st.markdown(
-                        f'''<div class="machine-card {condition}"><h4>{machine.get("machine_name", "Unnamed machine")}</h4>
+                        f"""<div class="machine-card {condition}"><h4>{machine.get("machine_name", "Unnamed machine")}</h4>
                         <p>{machine.get("location", "Unassigned location")} · {machine.get("department", "Unassigned department")}</p>
                         {state_badge(condition)} {state_badge(machine.get("status", "unknown"))}
                         <div style="margin-top:.8rem" class="metric-label">Temperature / risk</div>
-                        <b>{float(machine.get("temperature", 0)):.1f}°C</b> <span class="subtle">· {float(machine.get("failure_probability_display", 0)):.0%}</span></div>''',
+                        <b>{float(machine.get("temperature", 0)):.1f}°C</b> <span class="subtle">· {float(machine.get("failure_probability_display", 0)):.0%}</span></div>""",
                         unsafe_allow_html=True,
                     )
     with right:
@@ -363,14 +787,19 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
             st.info("Add machines and telemetry to populate the risk radar.")
         else:
             chart_data = machine_view.sort_values("failure_probability_display", ascending=False).head(10)
-            condition_colours = {"normal": "#65cf98", "warning": "#ffc46b", "critical": "#ff747d"}
+            condition_colours = {"normal": "#6c8751", "warning": "#d39b52", "critical": "#b84d49"}
             figure = go.Figure(
                 go.Bar(
                     x=chart_data["failure_probability_display"],
                     y=chart_data["machine_name"],
                     orientation="h",
-                    marker_color=[condition_colours.get(condition, "#70a7ff") for condition in chart_data["condition"]],
-                    text=[f"{probability:.0%} · {condition.title()}" for probability, condition in zip(chart_data["failure_probability_display"], chart_data["condition"])],
+                    marker_color=[condition_colours.get(condition, "#b65f3c") for condition in chart_data["condition"]],
+                    text=[
+                        f"{probability:.0%} · {condition.title()}"
+                        for probability, condition in zip(
+                            chart_data["failure_probability_display"], chart_data["condition"]
+                        )
+                    ],
                     textposition="outside",
                     cliponaxis=False,
                     hovertemplate="<b>%{y}</b><br>Failure probability: %{x:.1%}<extra></extra>",
@@ -381,7 +810,11 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
                 showlegend=False,
                 margin={"l": 150, "r": 95, "t": 16, "b": 45},
                 yaxis={"categoryorder": "total ascending", "title": None, "automargin": True},
-                xaxis={"title": "Failure probability", "tickformat": ".0%", "range": [0, max(0.1, float(chart_data["failure_probability_display"].max()) + 0.15)]},
+                xaxis={
+                    "title": "Failure probability",
+                    "tickformat": ".0%",
+                    "range": [0, max(0.1, float(chart_data["failure_probability_display"].max()) + 0.15)],
+                },
             )
             figure.update_layout(**radar_layout)
             st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
@@ -390,7 +823,14 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
     queue_left, queue_right = st.columns(2, gap="large")
     with queue_left:
         st.caption("Highest-risk machines")
-        columns = ["machine_name", "location", "temperature", "health_score_display", "failure_probability_display", "condition"]
+        columns = [
+            "machine_name",
+            "location",
+            "temperature",
+            "health_score_display",
+            "failure_probability_display",
+            "condition",
+        ]
         risk_table = format_table(machine_view.sort_values("failure_probability_display", ascending=False).head(8), columns).copy()
         if "failure_probability_display" in risk_table:
             risk_table["failure_probability_display"] = risk_table["failure_probability_display"].map("{:.1%}".format)
@@ -403,9 +843,28 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
             st.info("No maintenance records available.")
         else:
             workload = maintenance.copy()
+            if not machine_view.empty and {"machine_id", "machine_name"}.issubset(machine_view.columns):
+                workload = workload.merge(
+                    machine_view[["machine_id", "machine_name"]],
+                    on="machine_id",
+                    how="left",
+                )
             if "status" in workload:
                 workload = workload[~workload["status"].astype(str).str.lower().isin(["completed", "closed"])]
-            st.dataframe(format_table(workload, ["id", "machine_id", "maintenance_type", "technician", "status", "cost"]), use_container_width=True, hide_index=True)
+            workload = workload.rename(
+                columns={
+                    "machine_name": "Machine",
+                    "maintenance_type": "Task",
+                    "technician": "Technician",
+                    "status": "Status",
+                    "cost": "Cost",
+                }
+            )
+            st.dataframe(
+                format_table(workload, ["Machine", "Task", "Technician", "Status", "Cost"]),
+                use_container_width=True,
+                hide_index=True,
+            )
 
     if not telemetry.empty:
         st.markdown("#### Fleet signal snapshot")
@@ -416,17 +875,6 @@ def render_command_center(machine_view: pd.DataFrame, telemetry: pd.DataFrame, i
             st.dataframe(summary, use_container_width=True)
 
 
-def chart_layout(height: int = 400) -> dict[str, Any]:
-    return {
-        "height": height,
-        "paper_bgcolor": "rgba(0,0,0,0)",
-        "plot_bgcolor": "rgba(0,0,0,0)",
-        "font": {"color": "#dce7f9", "family": "DM Sans"},
-        "margin": {"l": 10, "r": 10, "t": 35, "b": 10},
-        "legend": {"orientation": "h", "y": 1.12},
-    }
-
-
 def render_fleet_explorer(machine_view: pd.DataFrame) -> None:
     if machine_view.empty:
         st.info("No machines match the active filters.")
@@ -435,28 +883,106 @@ def render_fleet_explorer(machine_view: pd.DataFrame) -> None:
     with summary:
         left, right = st.columns([1, 1.35], gap="large")
         with left:
-            status_counts = machine_view.get("status", pd.Series(dtype=str)).fillna("Unspecified").value_counts().rename_axis("Status").reset_index(name="Machines")
-            figure = px.pie(status_counts, names="Status", values="Machines", hole=0.65, color="Status", color_discrete_sequence=["#65cf98", "#ffc46b", "#ff747d", "#70a7ff", "#bca5ff"])
+            status_counts = (
+                machine_view.get("status", pd.Series(dtype=str))
+                .fillna("Unspecified")
+                .value_counts()
+                .rename_axis("Status")
+                .reset_index(name="Machines")
+            )
+            figure = px.pie(
+                status_counts,
+                names="Status",
+                values="Machines",
+                hole=0.65,
+                color="Status",
+                color_discrete_sequence=["#6c8751", "#d39b52", "#b84d49", "#b65f3c", "#7e8f5a"],
+            )
             figure.update_layout(**chart_layout(370), showlegend=True)
             st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
         with right:
-            location_counts = machine_view.get("location", pd.Series(dtype=str)).fillna("Unassigned").value_counts().rename_axis("Location").reset_index(name="Machines")
-            figure = px.bar(location_counts, x="Location", y="Machines", color="Machines", color_continuous_scale=["#203a63", "#70a7ff"], text="Machines")
+            location_counts = (
+                machine_view.get("location", pd.Series(dtype=str))
+                .fillna("Unassigned")
+                .value_counts()
+                .rename_axis("Location")
+                .reset_index(name="Machines")
+            )
+            figure = px.bar(
+                location_counts,
+                x="Location",
+                y="Machines",
+                color="Machines",
+                color_continuous_scale=["#e5d6c3", "#b65f3c"],
+                text="Machines",
+            )
             figure.update_layout(**chart_layout(370), coloraxis_showscale=False)
             st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
     with table:
         export = machine_view.copy()
         export["failure_probability_display"] = export["failure_probability_display"].map("{:.1%}".format)
-        export["temperature"] = export["temperature"].map("{:.1f}".format)
-        st.dataframe(format_table(export, ["machine_id", "machine_name", "department", "location", "status", "condition", "temperature", "health_score_display", "failure_probability_display", "predicted_days"]), use_container_width=True, hide_index=True)
-        st.download_button("Download filtered fleet CSV", machine_view.to_csv(index=False).encode("utf-8"), "factoryops_fleet.csv", "text/csv")
+        export["temperature"] = export["temperature"].map("{:.1f} C".format)
+        export = export.rename(
+            columns={
+                "machine_name": "Machine",
+                "department": "Department",
+                "location": "Location",
+                "status": "Status",
+                "condition": "Condition",
+                "temperature": "Temperature",
+                "health_score_display": "Health Score",
+                "failure_probability_display": "Failure Risk",
+                "predicted_days": "Predicted Days",
+            }
+        )
+        st.dataframe(
+            format_table(
+                export,
+                [
+                    "Machine",
+                    "Department",
+                    "Location",
+                    "Status",
+                    "Condition",
+                    "Temperature",
+                    "Health Score",
+                    "Failure Risk",
+                    "Predicted Days",
+                ],
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.download_button(
+            "Download filtered fleet CSV",
+            machine_view.to_csv(index=False).encode("utf-8"),
+            "factoryops_fleet.csv",
+            "text/csv",
+        )
 
         with st.expander("Update a machine status"):
             options = machine_view["machine_id"].tolist()
-            selected_id = st.selectbox("Machine", options, format_func=lambda identifier: f"#{identifier} · {machine_view.loc[machine_view['machine_id'].eq(identifier), 'machine_name'].iloc[0]}", key="machine_status_select")
+            selected_id = st.selectbox(
+                "Machine",
+                options,
+                format_func=lambda identifier: machine_view.loc[
+                    machine_view["machine_id"].eq(identifier), "machine_name"
+                ].iloc[0],
+                key="machine_status_select",
+            )
             selected = machine_view[machine_view["machine_id"].eq(selected_id)].iloc[0]
+            status_options = ["Running", "Idle", "Maintenance", "Stopped"]
+            st.caption(
+                f"{selected.get('department', 'Unassigned department')} | {selected.get('location', 'Unassigned location')}"
+            )
             with st.form("update_machine_status"):
-                new_status = st.selectbox("Operating status", ["Running", "Idle", "Maintenance", "Stopped"], index=["Running", "Idle", "Maintenance", "Stopped"].index(selected.get("status", "Running")) if selected.get("status", "Running") in ["Running", "Idle", "Maintenance", "Stopped"] else 0)
+                new_status = st.selectbox(
+                    "Operating status",
+                    status_options,
+                    index=status_options.index(selected.get("status", "Running"))
+                    if selected.get("status", "Running") in status_options
+                    else 0,
+                )
                 if st.form_submit_button("Save status"):
                     payload = {key: selected.get(key) for key in ["machine_name", "department", "location"]}
                     payload["status"] = new_status
@@ -468,35 +994,102 @@ def render_telemetry_lab(telemetry: pd.DataFrame, machines: pd.DataFrame) -> Non
     if telemetry.empty:
         st.info("No telemetry exists yet. Use Data Management to record a reading.")
         return
-    machine_names = machines[["machine_id", "machine_name"]] if not machines.empty and {"machine_id", "machine_name"}.issubset(machines.columns) else pd.DataFrame(columns=["machine_id", "machine_name"])
+    machine_names = (
+        machines[["machine_id", "machine_name"]]
+        if not machines.empty and {"machine_id", "machine_name"}.issubset(machines.columns)
+        else pd.DataFrame(columns=["machine_id", "machine_name"])
+    )
     data = telemetry.merge(machine_names, on="machine_id", how="left")
     data["machine_label"] = data["machine_name"].fillna("Unknown machine #" + data["machine_id"].astype(str))
-    selected_machine = st.selectbox("Inspect machine", sorted(data["machine_id"].dropna().unique()), format_func=lambda identifier: data.loc[data["machine_id"].eq(identifier), "machine_label"].iloc[0])
-    selected = data[data["machine_id"].eq(selected_machine)].sort_values("id") if "id" in data else data[data["machine_id"].eq(selected_machine)]
+    selected_machine = st.selectbox(
+        "Inspect machine",
+        sorted(data["machine_id"].dropna().unique()),
+        format_func=lambda identifier: data.loc[data["machine_id"].eq(identifier), "machine_label"].iloc[0],
+    )
+    selected = (
+        data[data["machine_id"].eq(selected_machine)].sort_values("id")
+        if "id" in data
+        else data[data["machine_id"].eq(selected_machine)]
+    )
     latest = selected.iloc[-1]
     metrics = st.columns(5)
-    for column, label, suffix in [("temperature", "Temperature", "°C"), ("vibration", "Vibration", ""), ("rpm", "RPM", ""), ("power", "Power", ""), ("oil_level", "Oil level", "%")]:
+    for column, label, suffix in [
+        ("temperature", "Temperature", "°C"),
+        ("vibration", "Vibration", ""),
+        ("rpm", "RPM", ""),
+        ("power", "Power", ""),
+        ("oil_level", "Oil level", "%"),
+    ]:
         with metrics[["temperature", "vibration", "rpm", "power", "oil_level"].index(column)]:
             st.metric(label, f"{float(latest.get(column, 0)):.1f}{suffix}")
 
-    signal_columns = [column for column in ["temperature", "pressure", "vibration", "voltage", "current", "power", "rpm", "humidity", "oil_level"] if column in selected]
+    signal_columns = [
+        column
+        for column in ["temperature", "pressure", "vibration", "voltage", "current", "power", "rpm", "humidity", "oil_level"]
+        if column in selected
+    ]
     chosen_signals = st.multiselect("Signals", signal_columns, default=signal_columns[:3])
     if chosen_signals:
         figure = go.Figure()
         x_values = selected["id"] if "id" in selected else selected.index
         for signal in chosen_signals:
-            figure.add_trace(go.Scatter(x=x_values, y=number_column(selected, signal), mode="lines+markers", name=signal.replace("_", " ").title()))
-        figure.update_layout(**chart_layout(430), xaxis_title="Telemetry record ID", yaxis_title="Recorded value")
+            figure.add_trace(
+                go.Scatter(
+                    x=x_values,
+                    y=number_column(selected, signal),
+                    mode="lines+markers",
+                    name=signal.replace("_", " ").title(),
+                )
+            )
+        figure.update_layout(**chart_layout(430), xaxis_title="Reading sequence", yaxis_title="Recorded value")
         st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
-        st.caption("The backend does not yet store timestamps; record ID is used as the sequence indicator.")
+        st.caption("The backend does not yet store timestamps, so readings are shown in capture order.")
 
     st.markdown("#### Recent raw readings")
-    st.dataframe(format_table(selected.sort_values("id", ascending=False), ["id", "machine_id", *signal_columns, "health_score", "failure_probability"]), use_container_width=True, hide_index=True)
-    st.download_button("Download inspected telemetry CSV", selected.to_csv(index=False).encode("utf-8"), "telemetry_export.csv", "text/csv")
+    display_selected = selected.sort_values("id", ascending=False).copy() if "id" in selected else selected.copy()
+    display_selected = display_selected.rename(
+        columns={
+            "machine_name": "Machine",
+            "temperature": "Temperature",
+            "pressure": "Pressure",
+            "vibration": "Vibration",
+            "voltage": "Voltage",
+            "current": "Current",
+            "power": "Power",
+            "rpm": "RPM",
+            "humidity": "Humidity",
+            "oil_level": "Oil Level",
+            "health_score": "Health Score",
+            "failure_probability": "Failure Risk",
+        }
+    )
+    st.dataframe(
+        format_table(
+            display_selected,
+            [
+                "Machine",
+                *[signal.replace("_", " ").title() for signal in signal_columns],
+                "Health Score",
+                "Failure Risk",
+            ],
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.download_button(
+        "Download inspected telemetry CSV",
+        selected.to_csv(index=False).encode("utf-8"),
+        "telemetry_export.csv",
+        "text/csv",
+    )
 
 
 def render_prediction_incident_page(predictions: pd.DataFrame, incidents: pd.DataFrame, machines: pd.DataFrame) -> None:
-    machine_names = machines[["machine_id", "machine_name", "location"]] if not machines.empty else pd.DataFrame(columns=["machine_id", "machine_name", "location"])
+    machine_names = (
+        machines[["machine_id", "machine_name", "location"]]
+        if not machines.empty
+        else pd.DataFrame(columns=["machine_id", "machine_name", "location"])
+    )
     tab_predictions, tab_incidents = st.tabs(["Failure prediction prioritization", "Incident command board"])
     with tab_predictions:
         if predictions.empty:
@@ -508,15 +1101,47 @@ def render_prediction_incident_page(predictions: pd.DataFrame, incidents: pd.Dat
             view["priority"] = view["failure_probability"].map(risk_state)
             left, right = st.columns([1.15, 1], gap="large")
             with left:
-                figure = px.scatter(view, x="health_score", y="failure_probability", size="failure_probability", color="priority", hover_name="machine_name", hover_data=["predicted_days", "location"], color_discrete_map={"normal": "#65cf98", "warning": "#ffc46b", "critical": "#ff747d"}, labels={"health_score": "Health score", "failure_probability": "Failure probability"})
+                figure = px.scatter(
+                    view,
+                    x="health_score",
+                    y="failure_probability",
+                    size="failure_probability",
+                    color="priority",
+                    hover_name="machine_name",
+                    hover_data=["predicted_days", "location"],
+                    color_discrete_map={"normal": "#6c8751", "warning": "#d39b52", "critical": "#b84d49"},
+                    labels={"health_score": "Health score", "failure_probability": "Failure probability"},
+                )
                 figure.update_layout(**chart_layout(410), yaxis_tickformat=".0%")
                 st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
             with right:
                 st.markdown("#### Immediate attention")
                 urgent = view.sort_values(["failure_probability", "predicted_days"], ascending=[False, True]).head(8).copy()
                 urgent["failure_probability"] = urgent["failure_probability"].map("{:.1%}".format)
-                st.dataframe(format_table(urgent, ["machine_name", "location", "failure_probability", "health_score", "predicted_days", "priority"]), use_container_width=True, hide_index=True)
-            st.download_button("Download prediction CSV", view.to_csv(index=False).encode("utf-8"), "prediction_priorities.csv", "text/csv")
+                urgent = urgent.rename(
+                    columns={
+                        "machine_name": "Machine",
+                        "location": "Location",
+                        "failure_probability": "Failure Risk",
+                        "health_score": "Health Score",
+                        "predicted_days": "Predicted Days",
+                        "priority": "Priority",
+                    }
+                )
+                st.dataframe(
+                    format_table(
+                        urgent,
+                        ["Machine", "Location", "Failure Risk", "Health Score", "Predicted Days", "Priority"],
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            st.download_button(
+                "Download prediction CSV",
+                view.to_csv(index=False).encode("utf-8"),
+                "prediction_priorities.csv",
+                "text/csv",
+            )
     with tab_incidents:
         if incidents.empty:
             st.info("No incidents have been recorded.")
@@ -534,45 +1159,108 @@ def render_prediction_incident_page(predictions: pd.DataFrame, incidents: pd.Dat
                         priority = str(incident.get("priority", "normal")).lower()
                         css = "critical" if priority == "critical" else "warning" if priority in {"high", "medium"} else "normal"
                         machine_label = incident.get("machine_name") or f"Machine #{incident.get('machine_id')}"
-                        st.markdown(f'<div class="machine-card {css}"><b>{machine_label}</b><p>{incident.get("description", "No description")}</p>{state_badge(incident.get("priority", "normal"))}<br><span class="subtle">Owner: {incident.get("assigned_to", "Unassigned")}</span></div>', unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div class="machine-card {css}"><b>{machine_label}</b><p>{incident.get("description", "No description")}</p>{state_badge(incident.get("priority", "normal"))}<br><span class="subtle">Owner: {incident.get("assigned_to", "Unassigned")}</span></div>',
+                            unsafe_allow_html=True,
+                        )
 
 
 def render_maintenance_inventory_page(maintenance: pd.DataFrame, inventory: pd.DataFrame, machines: pd.DataFrame) -> None:
-    machine_names = machines[["machine_id", "machine_name"]] if not machines.empty else pd.DataFrame(columns=["machine_id", "machine_name"])
+    machine_names = (
+        machines[["machine_id", "machine_name"]]
+        if not machines.empty
+        else pd.DataFrame(columns=["machine_id", "machine_name"])
+    )
     tab_maintenance, tab_inventory = st.tabs(["Maintenance planning", "Spare-parts readiness"])
     with tab_maintenance:
         if maintenance.empty:
             st.info("No maintenance jobs available.")
         else:
             view = maintenance.merge(machine_names, on="machine_id", how="left")
+            view = view.rename(
+                columns={
+                    "machine_name": "Machine",
+                    "maintenance_type": "Task",
+                    "technician": "Technician",
+                    "cost": "Cost",
+                    "remarks": "Remarks",
+                    "status": "Status",
+                }
+            )
             left, right = st.columns([1.15, 1], gap="large")
             with left:
-                status_counts = view.get("status", pd.Series(dtype=str)).fillna("Unspecified").value_counts().rename_axis("Status").reset_index(name="Jobs")
-                figure = px.bar(status_counts, x="Status", y="Jobs", color="Status", text="Jobs", color_discrete_sequence=["#70a7ff", "#ffc46b", "#65cf98", "#ff747d"])
+                status_counts = (
+                    view.get("status", pd.Series(dtype=str))
+                    .fillna("Unspecified")
+                    .value_counts()
+                    .rename_axis("Status")
+                    .reset_index(name="Jobs")
+                )
+                figure = px.bar(
+                    status_counts,
+                    x="Status",
+                    y="Jobs",
+                    color="Status",
+                    text="Jobs",
+                    color_discrete_sequence=["#b65f3c", "#d39b52", "#6c8751", "#b84d49"],
+                )
                 figure.update_layout(**chart_layout(340), showlegend=False)
                 st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
             with right:
                 total_cost = number_column(view, "cost").sum()
-                scheduled = int(view.get("status", pd.Series(dtype=str)).astype(str).str.lower().isin(["scheduled", "in progress"]).sum())
+                scheduled = int(
+                    view.get("status", pd.Series(dtype=str)).astype(str).str.lower().isin(["scheduled", "in progress"]).sum()
+                )
                 st.metric("Recorded maintenance cost", f"{total_cost:,.0f}")
                 st.metric("Active / scheduled jobs", scheduled)
-            st.dataframe(format_table(view.sort_values("id", ascending=False), ["id", "machine_name", "maintenance_type", "technician", "cost", "remarks", "status"]), use_container_width=True, hide_index=True)
+            st.dataframe(
+                format_table(
+                    view.sort_values("id", ascending=False),
+                    ["Machine", "Task", "Technician", "Cost", "Remarks", "Status"],
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
     with tab_inventory:
         if inventory.empty:
             st.info("No inventory records available.")
         else:
             view = inventory.copy()
             view["quantity"] = number_column(view, "quantity")
+            view = view.rename(
+                columns={
+                    "item_name": "Item",
+                    "quantity": "Quantity",
+                    "supplier": "Supplier",
+                    "status": "Status",
+                }
+            )
             left, right = st.columns([1.15, 1], gap="large")
             with left:
-                figure = px.bar(view.sort_values("quantity").head(12), x="quantity", y="item_name", orientation="h", color="status", color_discrete_sequence=["#65cf98", "#ffc46b", "#ff747d"], labels={"quantity": "Quantity", "item_name": ""})
+                figure = px.bar(
+                    view.sort_values("Quantity").head(12),
+                    x="Quantity",
+                    y="Item",
+                    orientation="h",
+                    color="Status",
+                    color_discrete_sequence=["#6c8751", "#d39b52", "#b84d49"],
+                    labels={"Quantity": "Quantity", "Item": ""},
+                )
                 figure.update_layout(**chart_layout(400), yaxis={"categoryorder": "total ascending"})
                 st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
             with right:
-                low = view[view.get("status", pd.Series(dtype=str)).astype(str).str.lower().str.contains("low")]
+                low = view[view.get("Status", pd.Series(dtype=str)).astype(str).str.lower().str.contains("low")]
                 st.markdown("#### Reorder watch")
-                st.dataframe(format_table(low, ["item_name", "quantity", "supplier", "status"]), use_container_width=True, hide_index=True)
-            st.dataframe(format_table(view.sort_values("quantity"), ["id", "item_name", "quantity", "supplier", "status"]), use_container_width=True, hide_index=True)
+                st.dataframe(
+                    format_table(low, ["Item", "Quantity", "Supplier", "Status"]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            st.dataframe(
+                format_table(view.sort_values("Quantity"), ["Item", "Quantity", "Supplier", "Status"]),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) -> None:
@@ -590,19 +1278,50 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                 if not name.strip():
                     st.error("Machine name is required.")
                 else:
-                    ok, message = send_record("POST", "machines", {"machine_name": name.strip(), "department": department or None, "location": location or None, "status": status})
+                    ok, message = send_record(
+                        "POST",
+                        "machines",
+                        {
+                            "machine_name": name.strip(),
+                            "department": department or None,
+                            "location": location or None,
+                            "status": status,
+                        },
+                    )
                     (st.success if ok else st.error)(message)
     with tabs[1]:
         if not machine_options:
             st.warning("Create a machine before entering telemetry.")
         else:
             with st.form("create_telemetry", clear_on_submit=True):
-                machine_id = st.selectbox("Machine *", machine_options, format_func=lambda value: machine_name_for(value, machines), key="telemetry_machine")
-                fields = [("temperature", "Temperature"), ("pressure", "Pressure"), ("vibration", "Vibration"), ("voltage", "Voltage"), ("current", "Current"), ("power", "Power"), ("rpm", "RPM"), ("humidity", "Humidity"), ("oil_level", "Oil level"), ("health_score", "Health score"), ("failure_probability", "Failure probability (0–1)")]
+                machine_id = st.selectbox(
+                    "Machine *",
+                    machine_options,
+                    format_func=lambda value: machine_name_for(value, machines),
+                    key="telemetry_machine",
+                )
+                fields = [
+                    ("temperature", "Temperature"),
+                    ("pressure", "Pressure"),
+                    ("vibration", "Vibration"),
+                    ("voltage", "Voltage"),
+                    ("current", "Current"),
+                    ("power", "Power"),
+                    ("rpm", "RPM"),
+                    ("humidity", "Humidity"),
+                    ("oil_level", "Oil level"),
+                    ("health_score", "Health score"),
+                    ("failure_probability", "Failure probability (0-1)"),
+                ]
                 values: dict[str, float] = {}
                 columns = st.columns(3)
                 for index, (key, label) in enumerate(fields):
-                    values[key] = columns[index % 3].number_input(label, min_value=0.0, value=0.0, key=f"telemetry_{key}")
+                    values[key] = columns[index % 3].number_input(
+                        label,
+                        min_value=0.0,
+                        value=0.0,
+                        key=f"telemetry_{key}",
+                    )
                 if st.form_submit_button("Record telemetry"):
                     ok, message = send_record("POST", "telemetry", {"machine_id": machine_id, **values})
                     (st.success if ok else st.error)(message)
@@ -610,8 +1329,16 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
         if machine_options:
             with st.form("create_maintenance", clear_on_submit=True):
                 left, right = st.columns(2)
-                machine_id = left.selectbox("Machine *", machine_options, format_func=lambda value: machine_name_for(value, machines), key="maintenance_machine")
-                maintenance_type = right.selectbox("Type", ["Inspection", "Preventive", "Corrective", "Predictive", "Emergency"])
+                machine_id = left.selectbox(
+                    "Machine *",
+                    machine_options,
+                    format_func=lambda value: machine_name_for(value, machines),
+                    key="maintenance_machine",
+                )
+                maintenance_type = right.selectbox(
+                    "Type",
+                    ["Inspection", "Preventive", "Corrective", "Predictive", "Emergency"],
+                )
                 technician = left.text_input("Technician *")
                 cost = right.number_input("Cost *", min_value=0.0, value=0.0)
                 remarks = left.text_input("Remarks *")
@@ -620,13 +1347,29 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                     if not technician.strip() or not remarks.strip():
                         st.error("Technician and remarks are required.")
                     else:
-                        ok, message = send_record("POST", "maintenance", {"machine_id": machine_id, "maintenance_type": maintenance_type, "technician": technician, "cost": cost, "remarks": remarks, "status": status})
+                        ok, message = send_record(
+                            "POST",
+                            "maintenance",
+                            {
+                                "machine_id": machine_id,
+                                "maintenance_type": maintenance_type,
+                                "technician": technician,
+                                "cost": cost,
+                                "remarks": remarks,
+                                "status": status,
+                            },
+                        )
                         (st.success if ok else st.error)(message)
     with tabs[3]:
         if machine_options:
             with st.form("create_incident", clear_on_submit=True):
                 left, right = st.columns(2)
-                machine_id = left.selectbox("Machine *", machine_options, format_func=lambda value: machine_name_for(value, machines), key="incident_machine")
+                machine_id = left.selectbox(
+                    "Machine *",
+                    machine_options,
+                    format_func=lambda value: machine_name_for(value, machines),
+                    key="incident_machine",
+                )
                 priority = right.selectbox("Priority", ["Low", "Medium", "High", "Critical"])
                 description = st.text_area("Description *")
                 assigned_to = left.text_input("Assigned to *")
@@ -635,7 +1378,17 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                     if not description.strip() or not assigned_to.strip():
                         st.error("Description and assignee are required.")
                     else:
-                        ok, message = send_record("POST", "incidents", {"machine_id": machine_id, "priority": priority, "description": description, "assigned_to": assigned_to, "status": status})
+                        ok, message = send_record(
+                            "POST",
+                            "incidents",
+                            {
+                                "machine_id": machine_id,
+                                "priority": priority,
+                                "description": description,
+                                "assigned_to": assigned_to,
+                                "status": status,
+                            },
+                        )
                         (st.success if ok else st.error)(message)
     with tabs[4]:
         with st.form("create_inventory", clear_on_submit=True):
@@ -648,7 +1401,11 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                 if not item_name.strip() or not supplier.strip():
                     st.error("Item name and supplier are required.")
                 else:
-                    ok, message = send_record("POST", "inventory", {"item_name": item_name, "quantity": quantity, "supplier": supplier, "status": status})
+                    ok, message = send_record(
+                        "POST",
+                        "inventory",
+                        {"item_name": item_name, "quantity": quantity, "supplier": supplier, "status": status},
+                    )
                     (st.success if ok else st.error)(message)
     with tabs[5]:
         with st.form("create_notification", clear_on_submit=True):
@@ -661,11 +1418,35 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                 if not title.strip() or not message.strip():
                     st.error("Title and message are required.")
                 else:
-                    ok, feedback = send_record("POST", "notifications", {"title": title, "message": message, "notification_type": notification_type, "status": status})
+                    ok, feedback = send_record(
+                        "POST",
+                        "notifications",
+                        {
+                            "title": title,
+                            "message": message,
+                            "notification_type": notification_type,
+                            "status": status,
+                        },
+                    )
                     (st.success if ok else st.error)(feedback)
         if not notifications.empty:
             st.caption("Latest notifications")
-            st.dataframe(format_table(notifications.sort_values("id", ascending=False), ["id", "title", "message", "notification_type", "status"]), use_container_width=True, hide_index=True)
+            display_notifications = notifications.sort_values("id", ascending=False).rename(
+                columns={
+                    "title": "Title",
+                    "message": "Message",
+                    "notification_type": "Type",
+                    "status": "Status",
+                }
+            )
+            st.dataframe(
+                format_table(
+                    display_notifications,
+                    ["Title", "Message", "Type", "Status"],
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
     with tabs[6]:
         with st.form("create_sensor", clear_on_submit=True):
             left, right = st.columns(2)
@@ -676,7 +1457,11 @@ def render_data_management(machines: pd.DataFrame, notifications: pd.DataFrame) 
                 if not sensor_name.strip():
                     st.error("Sensor name is required.")
                 else:
-                    ok, message = send_record("POST", "sensors", {"sensor_name": sensor_name, "location": location or None, "status": status})
+                    ok, message = send_record(
+                        "POST",
+                        "sensors",
+                        {"sensor_name": sensor_name, "location": location or None, "status": status},
+                    )
                     (st.success if ok else st.error)(message)
 
 
@@ -693,46 +1478,28 @@ def main() -> None:
         return
 
     health = get_health()
-
-    with st.sidebar:
-        st.markdown("## ⚙️ FactoryOps AI")
-        st.caption("Predictive maintenance control center")
-        user = st.session_state.current_user
-        st.markdown(f'<div class="user-panel"><b>{user.get("name", "Signed-in user")}</b><br><span class="subtle">{user.get("role", "User")}</span></div>', unsafe_allow_html=True)
-        if st.button("Sign out", use_container_width=True):
-            st.session_state.authenticated = False
-            st.session_state.current_user = {}
-            st.rerun()
-        if st.button("↻ Refresh live data", use_container_width=True):
-            get_records.clear()
-            get_health.clear()
-            st.rerun()
-        page = st.radio("Navigate", ["Command Center", "Fleet Explorer", "Telemetry Lab", "Predictions & Incidents", "Maintenance & Inventory", "Data Management"], label_visibility="collapsed")
-        st.divider()
-        st.caption("Connected endpoint")
-        st.code(API_BASE_URL, language=None)
+    page = render_top_navigation()
 
     if not health:
         page_header("Connection required", "Start the FastAPI backend to unlock live fleet operations and data entry.", health)
         st.error("The API is unavailable. Run: `uvicorn backend.api.main:app --reload`")
-        st.info("The UI is intentionally safe in offline mode: it does not fabricate operational data.")
+        st.info("The UI remains empty by design when the backend is offline.")
         return
 
     collections = {resource: as_frame(get_records(resource)) for resource in RESOURCE_LABELS}
     machine_view = build_machine_view(collections["machines"], collections["telemetry"], collections["predictions"])
-    locations, statuses, query = filters_sidebar(machine_view)
+    locations, statuses, query = render_search_filter_section(machine_view)
     filtered_machines = apply_filters(machine_view, locations, statuses, query)
 
     copy = {
-        "Command Center": ("Command Center", "Prioritize operational attention from fleet condition, health, risk and work queues."),
-        "Fleet Explorer": ("Fleet Explorer", "Search and filter every registered asset, then update its operating state."),
-        "Telemetry Lab": ("Telemetry Lab", "Inspect recorded machine signals, compare conditions and export data for analysis."),
+        "Command Center": ("Command Center", "Prioritize operational attention from fleet condition, health, risk, and work queues."),
+        "Fleet Explorer": ("Fleet Explorer", "Search the registered assets and update operating state from one cleaner workspace."),
+        "Telemetry Lab": ("Telemetry Lab", "Inspect recorded machine signals, compare conditions, and export the data you need."),
         "Predictions & Incidents": ("Predictions & Incidents", "Turn model outputs and reported issues into an action-oriented priority queue."),
-        "Maintenance & Inventory": ("Maintenance & Inventory", "Plan work, monitor spend and see whether required parts are available."),
+        "Maintenance & Inventory": ("Maintenance & Inventory", "Plan work, monitor spend, and verify whether required parts are available."),
         "Data Management": ("Data Management", "Create the operational records that power the dashboard through the FastAPI service."),
     }
     page_header(*copy[page], health)
-    st.write("")
 
     if page == "Command Center":
         render_command_center(filtered_machines, collections["telemetry"], collections["incidents"], collections["maintenance"])
