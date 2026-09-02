@@ -1,0 +1,14 @@
+[theme]
+base = "dark"
+primaryColor = "#4C9AFF"
+backgroundColor = "#08111F"
+secondaryBackgroundColor = "#101E33"
+textColor = "#E4ECF7"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[server]
+runOnSave = true

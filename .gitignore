@@ -5,3 +5,4 @@ factoryops.db
 __pycache__/
 *.pyc
 data/metropt3/MetroPT3(AirCompressor).csv
+docs
