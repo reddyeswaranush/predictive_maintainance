@@ -84,17 +84,17 @@ def inject_styles() -> None:
             --border: #d8c6af;
             --text: #2e241b;
             --muted: #756454;
-            --accent: #b65f3c;
-            --accent-2: #7e8f5a;
-            --accent-3: #d39b52;
+            --accent: #22133A;
+            --accent-2: #4b2a69;
+            --accent-3: #5e3a7b;
             --success: #6c8751;
-            --warning: #d39b52;
+            --warning: #5e3a7b;
             --danger: #b84d49;
         }
         .stApp {
             background:
-                radial-gradient(circle at top right, rgba(211, 155, 82, 0.18), transparent 22%),
-                radial-gradient(circle at bottom left, rgba(126, 143, 90, 0.12), transparent 28%),
+                radial-gradient(circle at top right, rgba(94, 58, 123, 0.14), transparent 22%),
+                radial-gradient(circle at bottom left, rgba(75, 42, 105, 0.1), transparent 28%),
                 var(--page);
             color: var(--text);
             font-family: 'Manrope', sans-serif;
@@ -132,8 +132,8 @@ def inject_styles() -> None:
         }
         .eyebrow {
             color: var(--accent);
-            font-size: 0.76rem;
-            font-weight: 700;
+            font-size: 1.05rem;
+            font-weight: 800;
             letter-spacing: 0.12em;
             text-transform: uppercase;
         }
@@ -142,6 +142,11 @@ def inject_styles() -> None:
         .stCaption {
             color: var(--text) !important;
             opacity: 0.75;
+        }
+        .login-intro h1 {
+            font-size: 3.2rem !important;
+            line-height: 1.08;
+            letter-spacing: -0.04em;
         }
         .pill {
             display: inline-block;
@@ -158,9 +163,9 @@ def inject_styles() -> None:
             border-color: rgba(126, 143, 90, 0.3);
         }
         .pill-warn {
-            color: #8e6426;
-            background: rgba(211, 155, 82, 0.14);
-            border-color: rgba(211, 155, 82, 0.3);
+            color: #4b2a69;
+            background: rgba(94, 58, 123, 0.14);
+            border-color: rgba(94, 58, 123, 0.3);
         }
         .pill-bad {
             color: #923c38;
@@ -245,7 +250,7 @@ def inject_styles() -> None:
         }
         .brand-title {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.45rem;
+            font-size: 1.85rem;
             font-weight: 700;
         }
         .user-chip {
@@ -293,7 +298,7 @@ def inject_styles() -> None:
         .stDownloadButton > button,
         .stFormSubmitButton > button {
             border-radius: 12px;
-            border: 1px solid #9a6a4b;
+            border: 1px solid #000000;
             background: var(--accent);
             color: #fffaf5;
             font-weight: 700;
@@ -302,8 +307,8 @@ def inject_styles() -> None:
         .stButton > button:hover,
         .stDownloadButton > button:hover,
         .stFormSubmitButton > button:hover {
-            background: #985032;
-            border-color: #985032;
+            background: #342052;
+            border-color: #000000;
             color: #fffaf5;
         }
         .stSelectbox,
@@ -312,10 +317,16 @@ def inject_styles() -> None:
         .stTextInput input,
         .stNumberInput input,
         .stTextArea textarea {
-            background: #fffaf4 !important;
+            background: #ffffff !important;
             border-color: var(--border) !important;
             color: var(--text) !important;
             border-radius: 12px !important;
+        }
+        .stTextInput input::placeholder,
+        .stTextArea textarea::placeholder,
+        .stSelectbox input::placeholder {
+            color: #7c6c5f !important;
+            opacity: 1 !important;
         }
         .stSelectbox,
         .stSelectbox > div {
@@ -327,15 +338,32 @@ def inject_styles() -> None:
         .stTextInput label,
         .stNumberInput label,
         .stTextArea label,
-        .stSelectbox label {
+        .stSelectbox label,
+        .stMultiSelect label {
             color: var(--text) !important;
             font-weight: 600 !important;
+        }
+        .stMultiSelect label p {
+            color: var(--text) !important;
+            font-weight: 600 !important;
+        }
+        div[data-baseweb='select'] span {
+            color: var(--text) !important;
+        }
+        div[data-baseweb='popover'] [role='option'] {
+            color: var(--text) !important;
+            background: #ffffff !important;
+        }
+        div[data-baseweb='popover'] [role='option']:hover {
+            background: #f0eaf6 !important;
         }
         .stTabs [data-baseweb='tab-list'] {
             gap: 0.45rem;
         }
         .stTabs [data-baseweb='tab'] {
             background: rgba(229, 214, 195, 0.35);
+            border: 1px solid #000000;
+            border-bottom: 0;
             border-radius: 10px 10px 0 0;
             color: var(--text) !important;
             padding: 0.55rem 0.9rem;
@@ -344,7 +372,7 @@ def inject_styles() -> None:
         .stTabs [aria-selected='true'] {
             color: var(--text) !important;
             background: var(--surface) !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid #000000 !important;
             border-bottom: none !important;
             font-weight: 700;
         }
@@ -356,6 +384,10 @@ def inject_styles() -> None:
             border: 1px solid var(--border);
             border-radius: 999px;
             padding: 0.35rem 0.85rem;
+        }
+        div[role="radiogroup"] label p {
+            color: var(--text) !important;
+            font-weight: 600 !important;
         }
         div[role="radiogroup"] label:has(input:checked) {
             background: var(--accent);
@@ -376,6 +408,13 @@ def inject_styles() -> None:
             color: var(--muted);
             font-size: 0.84rem;
             margin: 0.2rem 0 1rem;
+        }
+        .filter-shell h4,
+        .section-title {
+            font-size: 2.1rem !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.03em;
+            font-family: 'Outfit', sans-serif;
         }
         </style>
         """,
@@ -440,12 +479,11 @@ def render_login_page() -> None:
     )
     left, middle, right = st.columns([1, 1.25, 1], gap="large")
     with middle:
-        st.markdown('<div class="login-panel">', unsafe_allow_html=True)
         sign_in_tab, sign_up_tab = st.tabs(["Sign In", "Sign Up"])
         with sign_in_tab:
             with st.form("factoryops_login", clear_on_submit=False):
-                username = st.text_input("Username", placeholder="Enter your username", autocomplete="username")
-                password = st.text_input("Password", type="password", placeholder="Enter your password", autocomplete="current-password")
+                username = st.text_input("Username", autocomplete="username")
+                password = st.text_input("Password", type="password", autocomplete="current-password")
                 submitted = st.form_submit_button("Sign in", use_container_width=True)
             if submitted:
                 if authenticate(username, password):
@@ -453,8 +491,8 @@ def render_login_page() -> None:
                 st.error("Incorrect username or password.")
         with sign_up_tab:
             with st.form("factoryops_signup", clear_on_submit=False):
-                name = st.text_input("Full name", placeholder="Enter your full name")
-                username = st.text_input("Choose a username", placeholder="Create a username")
+                name = st.text_input("Full name")
+                username = st.text_input("Choose a username")
                 password = st.text_input("Create a password", type="password")
                 role = st.selectbox("Role", ["Operator", "Maintenance", "System Administrator"])
                 created = st.form_submit_button("Create account", use_container_width=True)
@@ -464,15 +502,6 @@ def render_login_page() -> None:
                     st.success(message)
                     st.rerun()
                 st.error(message)
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class="auth-note">
-                <p>Sign in with your assigned credentials or create a local demo account. All accounts are stored locally in your current session.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -650,7 +679,6 @@ def chart_layout(height: int = 400) -> dict[str, Any]:
 
 def render_top_navigation() -> str:
     user = st.session_state.current_user
-    st.markdown('<div class="topbar">', unsafe_allow_html=True)
     left, right = st.columns([1.55, 0.8], gap="large")
     with left:
         st.markdown(
@@ -691,13 +719,12 @@ def render_top_navigation() -> str:
                 st.session_state.authenticated = False
                 st.session_state.current_user = {}
                 st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
     return st.session_state.active_page
 
 
 def render_search_filter_section(machine_view: pd.DataFrame) -> tuple[list[str], list[str], str]:
     st.markdown('<div class="filter-shell">', unsafe_allow_html=True)
-    st.markdown("#### Search And Filter")
+    st.markdown('<h4 class="section-title">Search And Filter</h4>', unsafe_allow_html=True)
     st.markdown(
         f'<div class="section-note">Browse {len(machine_view)} registered assets from one combined search and filter bar.</div>',
         unsafe_allow_html=True,
@@ -706,11 +733,11 @@ def render_search_filter_section(machine_view: pd.DataFrame) -> tuple[list[str],
     locations = sorted(machine_view["location"].dropna().astype(str).unique()) if "location" in machine_view else []
     statuses = sorted(machine_view["status"].dropna().astype(str).unique()) if "status" in machine_view else []
     with left:
-        query = st.text_input("Search machines", placeholder="Search by machine name, department, or location")
+        query = st.text_input("Search machines")
     with middle:
-        selected_locations = st.multiselect("Locations", locations, placeholder="All locations")
+        selected_locations = st.multiselect("Locations", locations, placeholder=" ")
     with right:
-        selected_statuses = st.multiselect("Machine status", statuses, placeholder="All statuses")
+        selected_statuses = st.multiselect("Machine status", statuses, placeholder=" ")
     st.markdown("</div>", unsafe_allow_html=True)
     return selected_locations, selected_statuses, query
 
@@ -787,13 +814,13 @@ def render_command_center(
             st.info("Add machines and telemetry to populate the risk radar.")
         else:
             chart_data = machine_view.sort_values("failure_probability_display", ascending=False).head(10)
-            condition_colours = {"normal": "#6c8751", "warning": "#d39b52", "critical": "#b84d49"}
+            condition_colours = {"normal": "#6c8751", "warning": "#5e3a7b", "critical": "#b84d49"}
             figure = go.Figure(
                 go.Bar(
                     x=chart_data["failure_probability_display"],
                     y=chart_data["machine_name"],
                     orientation="h",
-                    marker_color=[condition_colours.get(condition, "#b65f3c") for condition in chart_data["condition"]],
+                    marker_color=[condition_colours.get(condition, "#22133A") for condition in chart_data["condition"]],
                     text=[
                         f"{probability:.0%} · {condition.title()}"
                         for probability, condition in zip(
@@ -896,7 +923,7 @@ def render_fleet_explorer(machine_view: pd.DataFrame) -> None:
                 values="Machines",
                 hole=0.65,
                 color="Status",
-                color_discrete_sequence=["#6c8751", "#d39b52", "#b84d49", "#b65f3c", "#7e8f5a"],
+                color_discrete_sequence=["#6c8751", "#5e3a7b", "#b84d49", "#22133A", "#4b2a69"],
             )
             figure.update_layout(**chart_layout(370), showlegend=True)
             st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
@@ -913,7 +940,7 @@ def render_fleet_explorer(machine_view: pd.DataFrame) -> None:
                 x="Location",
                 y="Machines",
                 color="Machines",
-                color_continuous_scale=["#e5d6c3", "#b65f3c"],
+                color_continuous_scale=["#e5d6c3", "#22133A"],
                 text="Machines",
             )
             figure.update_layout(**chart_layout(370), coloraxis_showscale=False)
@@ -1109,7 +1136,7 @@ def render_prediction_incident_page(predictions: pd.DataFrame, incidents: pd.Dat
                     color="priority",
                     hover_name="machine_name",
                     hover_data=["predicted_days", "location"],
-                    color_discrete_map={"normal": "#6c8751", "warning": "#d39b52", "critical": "#b84d49"},
+                    color_discrete_map={"normal": "#6c8751", "warning": "#5e3a7b", "critical": "#b84d49"},
                     labels={"health_score": "Health score", "failure_probability": "Failure probability"},
                 )
                 figure.update_layout(**chart_layout(410), yaxis_tickformat=".0%")
@@ -1202,7 +1229,7 @@ def render_maintenance_inventory_page(maintenance: pd.DataFrame, inventory: pd.D
                     y="Jobs",
                     color="Status",
                     text="Jobs",
-                    color_discrete_sequence=["#b65f3c", "#d39b52", "#6c8751", "#b84d49"],
+                    color_discrete_sequence=["#22133A", "#5e3a7b", "#6c8751", "#b84d49"],
                 )
                 figure.update_layout(**chart_layout(340), showlegend=False)
                 st.plotly_chart(figure, use_container_width=True, config={"displayModeBar": False})
@@ -1243,7 +1270,7 @@ def render_maintenance_inventory_page(maintenance: pd.DataFrame, inventory: pd.D
                     y="Item",
                     orientation="h",
                     color="Status",
-                    color_discrete_sequence=["#6c8751", "#d39b52", "#b84d49"],
+                    color_discrete_sequence=["#6c8751", "#5e3a7b", "#b84d49"],
                     labels={"Quantity": "Quantity", "Item": ""},
                 )
                 figure.update_layout(**chart_layout(400), yaxis={"categoryorder": "total ascending"})
