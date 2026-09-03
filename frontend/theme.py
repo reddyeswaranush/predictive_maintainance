@@ -85,10 +85,15 @@ RGB_TOKENS: dict[str, str] = {
 
 def chart_layout(height: int = 380) -> dict[str, Any]:
     """Shared Plotly layout so every chart in the product matches."""
+    slate_grid = f"rgba({RGB_TOKENS['slate_rgb']}, 0.10)"
+    slate_zeroline = f"rgba({RGB_TOKENS['slate_rgb']}, 0.16)"
+    slate_line = f"rgba({RGB_TOKENS['slate_rgb']}, 0.18)"
+    slate_border_strong = f"rgba({RGB_TOKENS['slate_rgb']}, 0.32)"
+
     axis = {
-        "gridcolor": "rgba(var(--slate-rgb), 0.10)",
-        "zerolinecolor": "rgba(var(--slate-rgb), 0.16)",
-        "linecolor": "rgba(var(--slate-rgb), 0.18)",
+        "gridcolor": slate_grid,
+        "zerolinecolor": slate_zeroline,
+        "linecolor": slate_line,
         "tickfont": {"color": COLORS["text_muted"], "size": 11},
         "title": {"font": {"color": COLORS["text_muted"], "size": 12}},
     }
@@ -100,7 +105,7 @@ def chart_layout(height: int = 380) -> dict[str, Any]:
         "margin": {"l": 8, "r": 12, "t": 24, "b": 12},
         "hoverlabel": {
             "bgcolor": COLORS["surface_raised"],
-            "bordercolor": COLORS["border_strong"],
+            "bordercolor": slate_border_strong,
             "font": {"color": COLORS["text"], "family": "Inter, sans-serif"},
         },
         "legend": {"orientation": "h", "y": 1.14, "x": 0, "font": {"color": COLORS["text_muted"]}},
