@@ -17,21 +17,21 @@ import streamlit as st
 # --------------------------------------------------------------------------
 
 COLORS: dict[str, str] = {
-    "canvas": "#08111F",
-    "surface": "#0E1B2E",
-    "surface_raised": "#132540",
-    "surface_hover": "#172C4A",
+    "canvas": "#151515",
+    "surface": "#202020",
+    "surface_raised": "#2A2A2A",
+    "surface_hover": "#353535",
     "border": "rgba(var(--slate-rgb), 0.16)",
     "border_strong": "rgba(var(--slate-rgb), 0.32)",
-    "text": "#E4ECF7",
-    "text_muted": "#8CA3C4",
-    "text_faint": "#5F779B",
-    "accent": "#4C9AFF",
-    "accent_soft": "#7FC1FF",
-    "accent_deep": "#1E5FBF",
-    "success": "#3DD68C",
-    "warning": "#F5B544",
-    "danger": "#F0655F",
+    "text": "#F6F5F2",
+    "text_muted": "#B1ACA3",
+    "text_faint": "#B1ACA3",
+    "accent": "#B88746",
+    "accent_soft": "#C89A5A",
+    "accent_deep": "#976F37",
+    "success": "#3AA56B",
+    "warning": "#D6A22B",
+    "danger": "#CC4F4F",
 }
 
 FONT_HEADING = "'Plus Jakarta Sans', 'Segoe UI', sans-serif"
@@ -79,7 +79,7 @@ RGB_TOKENS: dict[str, str] = {
     "danger_rgb": _rgb(COLORS["danger"]),
     "surface_rgb": _rgb(COLORS["surface_raised"]),
     "canvas_rgb": _rgb(COLORS["canvas"]),
-    "slate_rgb": "120, 165, 225",  # neutral blue-grey used for borders/dividers
+    "slate_rgb": "74, 74, 74",  # neutral blue-grey used for borders/dividers
 }
 
 
