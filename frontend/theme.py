@@ -17,21 +17,21 @@ import streamlit as st
 # --------------------------------------------------------------------------
 
 COLORS: dict[str, str] = {
-    "canvas": "#151515",
-    "surface": "#202020",
-    "surface_raised": "#2A2A2A",
-    "surface_hover": "#353535",
+    "canvas": "#E3E7EC",
+    "surface": "#F2F5F8",
+    "surface_raised": "#DCE2E9",
+    "surface_hover": "#D3DBE4",
     "border": "rgba(var(--slate-rgb), 0.16)",
     "border_strong": "rgba(var(--slate-rgb), 0.32)",
-    "text": "#F6F5F2",
-    "text_muted": "#B1ACA3",
-    "text_faint": "#B1ACA3",
-    "accent": "#B88746",
-    "accent_soft": "#C89A5A",
-    "accent_deep": "#976F37",
-    "success": "#3AA56B",
-    "warning": "#D6A22B",
-    "danger": "#CC4F4F",
+    "text": "#2A4B70",
+    "text_muted": "#5E7591",
+    "text_faint": "#8A9AAD",
+    "accent": "#4F8FD8",
+    "accent_soft": "#6BA7E7",
+    "accent_deep": "#3977C4",
+    "success": "#2FB36D",
+    "warning": "#E0B23F",
+    "danger": "#D85B5B",
 }
 
 FONT_HEADING = "'Plus Jakarta Sans', 'Segoe UI', sans-serif"
@@ -79,7 +79,7 @@ RGB_TOKENS: dict[str, str] = {
     "danger_rgb": _rgb(COLORS["danger"]),
     "surface_rgb": _rgb(COLORS["surface_raised"]),
     "canvas_rgb": _rgb(COLORS["canvas"]),
-    "slate_rgb": "74, 74, 74",  # neutral blue-grey used for borders/dividers
+    "slate_rgb": "190, 202, 216",  # neutral blue-grey used for borders/dividers
 }
 
 
@@ -196,7 +196,7 @@ a:hover { color: var(--accent-soft); }
 
 /* ---------------- header ---------------- */
 .st-key-app_header {
-    background: linear-gradient(180deg, rgba(var(--surface-rgb),.92), rgba(14,27,46,.86));
+    background: linear-gradient(180deg, rgba(var(--surface-rgb),.92), rgba(var(--surface-rgb),.86));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: .55rem 1.1rem;
@@ -284,7 +284,7 @@ a:hover { color: var(--accent-soft); }
 
 /* ---------------- cards ---------------- */
 .fo-card {
-    background: linear-gradient(180deg, rgba(var(--surface-rgb),.62), rgba(14,27,46,.62));
+    background: linear-gradient(180deg, rgba(var(--surface-rgb),.62), rgba(var(--surface-rgb),.62));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 1.05rem 1.15rem;
@@ -379,7 +379,7 @@ a:hover { color: var(--accent-soft); }
 .fo-auth-brand .fo-brand-name { font-size: 1.32rem; }
 .fo-auth-brand .fo-brand-sub { margin-top: .28rem; }
 .st-key-auth_card {
-    background: linear-gradient(180deg, rgba(var(--surface-rgb),.78), rgba(12,24,42,.78));
+    background: linear-gradient(180deg, rgba(var(--surface-rgb),.78), rgba(var(--surface-rgb),.78));
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 1.5rem 1.5rem .9rem;
