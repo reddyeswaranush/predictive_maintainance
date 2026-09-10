@@ -11,12 +11,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
+from xgboost import XGBRegressor
 
 from ml.features import build_features, feature_names
-from ml.model import RidgeRegressor
-from ml.scaler import StandardScaler
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,17 +37,36 @@ def load_training_data(database_path: str | Path = DEFAULT_DATABASE) -> pd.DataF
 def train(database_path: str | Path = DEFAULT_DATABASE, artifact_path: str | Path = DEFAULT_ARTIFACT) -> dict:
     data = load_training_data(database_path)
     features = build_features(data)
-    scaler = StandardScaler().fit(features.to_numpy())
-    scaled = scaler.transform(features.to_numpy())
-
-    probability_model = RidgeRegressor(alpha=1.0).fit(
-        scaled, data["failure_probability"].to_numpy(dtype=float)
-    )
-    health_model = RidgeRegressor(alpha=1.0).fit(
-        scaled, data["health_score"].to_numpy(dtype=float)
-    )
+    values = features.to_numpy()
+    probability_model = XGBRegressor(
+        objective="reg:squarederror",
+        n_estimators=200,
+        max_depth=4,
+        learning_rate=0.05,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        random_state=42,
+        n_jobs=1,
+    ).fit(values, data["failure_probability"].to_numpy(dtype=float))
+    health_model = XGBRegressor(
+        objective="reg:squarederror",
+        n_estimators=200,
+        max_depth=4,
+        learning_rate=0.05,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        random_state=42,
+        n_jobs=1,
+    ).fit(values, data["health_score"].to_numpy(dtype=float))
+    artifact_path = Path(artifact_path)
+    probability_model_path = artifact_path.with_name(f"{artifact_path.stem}_probability.json")
+    health_model_path = artifact_path.with_name(f"{artifact_path.stem}_health.json")
+    probability_model_path.parent.mkdir(parents=True, exist_ok=True)
+    probability_model.save_model(probability_model_path)
+    health_model.save_model(health_model_path)
     artifact = {
-        "version": 1,
+        "version": 2,
+        "model_type": "xgboost.XGBRegressor",
         "feature_names": feature_names(),
         "training_rows": len(data),
         "targets": {
@@ -57,11 +74,9 @@ def train(database_path: str | Path = DEFAULT_DATABASE, artifact_path: str | Pat
             "health_score": "telemetry.health_score",
             "predicted_days": "derived from predicted failure probability; no RUL label exists",
         },
-        "scaler": scaler.to_dict(),
-        "probability_model": probability_model.to_dict(),
-        "health_model": health_model.to_dict(),
+        "probability_model": probability_model_path.name,
+        "health_model": health_model_path.name,
     }
-    artifact_path = Path(artifact_path)
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_text(json.dumps(artifact, indent=2), encoding="utf-8")
     return artifact

@@ -1,4 +1,19 @@
-# MetroPT-3 machine-failure model
+# FactoryOps predictive-maintenance models
+
+The default prediction endpoint uses two `XGBRegressor` models trained from
+the telemetry features in `ml.features`: one for failure probability and one
+for health score. XGBoost operates directly on the generated features, so no
+feature scaling is applied. The models and their metadata are saved by:
+
+```powershell
+.\.venv\Scripts\python.exe -m ml.train_model
+```
+
+The default artifact is saved to `ml\model.json`, with the two native XGBoost
+model files saved beside it. `predicted_days` remains a derived value based on
+the predicted failure probability.
+
+## MetroPT-3 machine-failure model
 
 The production training pipeline uses the uploaded MetroPT-3 Air Compressor
 CSV. It reads the 1-second stream in chunks, aggregates it to one-minute

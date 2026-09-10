@@ -7,10 +7,9 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+from xgboost import XGBRegressor
 
 from ml.features import build_features, build_metro_features
-from ml.model import RidgeRegressor
-from ml.scaler import StandardScaler
 
 
 ARTIFACT_PATH = Path(__file__).resolve().parent / "model.json"
@@ -24,11 +23,11 @@ def _load_models(artifact_path: str | Path = ARTIFACT_PATH):
             f"Model artifact not found at {path}. Run `python -m ml.train_model` first."
         )
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return (
-        StandardScaler.from_dict(payload["scaler"]),
-        RidgeRegressor.from_dict(payload["probability_model"]),
-        RidgeRegressor.from_dict(payload["health_model"]),
-    )
+    probability_model = XGBRegressor()
+    health_model = XGBRegressor()
+    probability_model.load_model(path.parent / payload["probability_model"])
+    health_model.load_model(path.parent / payload["health_model"])
+    return probability_model, health_model
 
 
 def predict_telemetry(
@@ -36,8 +35,8 @@ def predict_telemetry(
     artifact_path: str | Path = ARTIFACT_PATH,
 ) -> dict[str, float | int]:
     frame = telemetry if isinstance(telemetry, pd.DataFrame) else pd.DataFrame([telemetry])
-    scaler, probability_model, health_model = _load_models(artifact_path)
-    values = scaler.transform(build_features(frame).to_numpy())
+    probability_model, health_model = _load_models(artifact_path)
+    values = build_features(frame).to_numpy()
     probability = float(max(0.0, min(1.0, probability_model.predict(values)[0])))
     health = float(max(0.0, min(100.0, health_model.predict(values)[0])))
     predicted_days = max(1, min(365, round(90.0 * (1.0 - probability) + 1.0)))

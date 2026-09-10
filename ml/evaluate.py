@@ -14,8 +14,8 @@ from ml.features import build_features
 
 def evaluate(database_path: str | Path, artifact_path: str | Path = DEFAULT_ARTIFACT) -> dict[str, float | int]:
     data = load_training_data(database_path)
-    scaler, probability_model, health_model = _load_models(artifact_path)
-    values = scaler.transform(build_features(data).to_numpy())
+    probability_model, health_model = _load_models(artifact_path)
+    values = build_features(data).to_numpy()
     probability_error = probability_model.predict(values) - data["failure_probability"].to_numpy()
     health_error = health_model.predict(values) - data["health_score"].to_numpy()
     return {
