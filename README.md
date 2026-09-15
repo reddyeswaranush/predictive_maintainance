@@ -28,13 +28,13 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Start the backend from the project root:
+Start the backend:
 
 ```powershell
 uvicorn backend.api.main:app --reload
 ```
 
-In a second terminal, start the Streamlit frontend:
+In a second terminal, start the frontend:
 
 ```powershell
 streamlit run frontend/app.py
