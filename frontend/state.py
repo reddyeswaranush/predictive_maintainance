@@ -12,6 +12,13 @@ from copy import deepcopy
 import streamlit as st
 
 # ---------------------------------------------------------------------------
+# Theme
+# ---------------------------------------------------------------------------
+
+THEME_LIGHT = "light"
+THEME_DARK = "dark"
+
+# ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
 
@@ -64,6 +71,7 @@ def initialise_session() -> None:
         "demo_users": deepcopy(DEFAULT_DEMO_USERS),
         "screen": SCREEN_LOGIN,
         "route": DEFAULT_ROUTE,
+        "theme": THEME_LIGHT,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -119,6 +127,15 @@ def sign_out() -> None:
 
 def current_user() -> dict[str, str]:
     return st.session_state.get("current_user", {})
+
+
+def current_theme() -> str:
+    theme = st.session_state.get("theme", THEME_LIGHT)
+    return theme if theme in {THEME_LIGHT, THEME_DARK} else THEME_LIGHT
+
+
+def toggle_theme() -> None:
+    st.session_state["theme"] = THEME_DARK if current_theme() == THEME_LIGHT else THEME_LIGHT
 
 
 def enter_app() -> None:

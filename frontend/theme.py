@@ -16,7 +16,7 @@ import streamlit as st
 # Tokens
 # --------------------------------------------------------------------------
 
-COLORS: dict[str, str] = {
+LIGHT_COLORS: dict[str, str] = {
     "canvas": "#F3EFED",
     "surface": "#FFFDFC",
     "surface_raised": "#F6F1EF",
@@ -38,27 +38,77 @@ COLORS: dict[str, str] = {
     "danger": "#C94D4D",
 }
 
+DARK_COLORS: dict[str, str] = {
+    "canvas": "#0B1320",
+    "surface": "#111C2A",
+    "surface_raised": "#172B3D",
+    "surface_hover": "#1B3551",
+
+    "border": "rgba(var(--slate-rgb), 0.24)",
+    "border_strong": "rgba(var(--slate-rgb), 0.46)",
+
+    "text": "#EAF1FF",
+    "text_muted": "#B8C8DC",
+    "text_faint": "#7D94B0",
+
+    "accent": "#5B8DEF",
+    "accent_soft": "#8FB6FF",
+    "accent_deep": "#2F5AB4",
+
+    "success": "#5FB78B",
+    "warning": "#E7A85E",
+    "danger": "#D46969",
+}
+
+THEME_PALETTES: dict[str, dict[str, str]] = {
+    "light": LIGHT_COLORS,
+    "dark": DARK_COLORS,
+}
+
+COLORS: dict[str, str] = LIGHT_COLORS.copy()
 FONT_HEADING = "'Plus Jakarta Sans', 'Segoe UI', sans-serif"
 FONT_BODY = "'Inter', 'Segoe UI', sans-serif"
 
-# Semantic condition -> colour, used by badges and every chart.
-CONDITION_COLORS: dict[str, str] = {
-    "normal": COLORS["success"],
-    "warning": COLORS["warning"],
-    "critical": COLORS["danger"],
-}
 
-# Ordered palette for categorical charts.
-CATEGORICAL_SEQUENCE: list[str] = [
-    COLORS["accent"],
-    COLORS["accent_soft"],
-    COLORS["success"],
-    COLORS["warning"],
-    COLORS["danger"],
-    COLORS["accent_deep"],
-]
+def _theme_name() -> str:
+    try:
+        from frontend import state
 
-CONTINUOUS_SCALE: list[str] = ["#1B3355", COLORS["accent_deep"], COLORS["accent"], COLORS["accent_soft"]]
+        return state.current_theme()
+    except Exception:
+        return "light"
+
+
+def set_theme(theme_name: str | None = None) -> None:
+    palette = THEME_PALETTES.get(theme_name or _theme_name(), LIGHT_COLORS)
+    COLORS.clear()
+    COLORS.update(palette)
+
+    global CONDITION_COLORS, CATEGORICAL_SEQUENCE, CONTINUOUS_SCALE, RGB_TOKENS
+    CONDITION_COLORS = {
+        "normal": COLORS["success"],
+        "warning": COLORS["warning"],
+        "critical": COLORS["danger"],
+    }
+    CATEGORICAL_SEQUENCE = [
+        COLORS["accent"],
+        COLORS["accent_soft"],
+        COLORS["success"],
+        COLORS["warning"],
+        COLORS["danger"],
+        COLORS["accent_deep"],
+    ]
+    CONTINUOUS_SCALE = ["#1B3355", COLORS["accent_deep"], COLORS["accent"], COLORS["accent_soft"]]
+    RGB_TOKENS = {
+        "accent_rgb": _rgb(COLORS["accent"]),
+        "accent_deep_rgb": _rgb(COLORS["accent_deep"]),
+        "success_rgb": _rgb(COLORS["success"]),
+        "warning_rgb": _rgb(COLORS["warning"]),
+        "danger_rgb": _rgb(COLORS["danger"]),
+        "surface_rgb": _rgb(COLORS["surface_raised"]),
+        "canvas_rgb": _rgb(COLORS["canvas"]),
+        "slate_rgb": "201, 189, 194" if theme_name == "light" or theme_name is None else "148, 171, 194",
+    }
 
 
 def _rgb(hex_colour: str) -> str:
@@ -75,6 +125,20 @@ def _rgb(hex_colour: str) -> str:
 
 
 # Derived automatically - never edit these by hand.
+CONDITION_COLORS: dict[str, str] = {
+    "normal": COLORS["success"],
+    "warning": COLORS["warning"],
+    "critical": COLORS["danger"],
+}
+CATEGORICAL_SEQUENCE: list[str] = [
+    COLORS["accent"],
+    COLORS["accent_soft"],
+    COLORS["success"],
+    COLORS["warning"],
+    COLORS["danger"],
+    COLORS["accent_deep"],
+]
+CONTINUOUS_SCALE: list[str] = ["#1B3355", COLORS["accent_deep"], COLORS["accent"], COLORS["accent_soft"]]
 RGB_TOKENS: dict[str, str] = {
     "accent_rgb": _rgb(COLORS["accent"]),
     "accent_deep_rgb": _rgb(COLORS["accent_deep"]),
@@ -240,6 +304,9 @@ a:hover { color: var(--accent-soft); }
     transition: color var(--speed) var(--ease), background var(--speed) var(--ease),
                 border-color var(--speed) var(--ease), transform var(--speed) var(--ease);
     box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .st-key-app_header .stButton > button:hover {
     color: var(--text);
@@ -265,10 +332,19 @@ a:hover { color: var(--accent-soft); }
     font-size: .82rem;
     min-height: 2.3rem;
     transition: all var(--speed) var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .st-key-app_header [data-testid='stPopover'] button:hover {
     background: rgba(var(--accent-rgb),.14);
     border-color: var(--border-strong);
+}
+
+#theme_toggle {
+    height: 2.35rem;
+    min-height: 2.35rem;
+    align-self: center;
 }
 
 /* ---------------- page heading ---------------- */
@@ -545,6 +621,7 @@ hr { border-color: var(--border) !important; }
 def build_stylesheet() -> str:
     """Resolve design tokens into the final CSS. `$name` placeholders only -
     CSS percentages and `%` values pass through untouched."""
+    set_theme(_theme_name())
     return Template(_STYLESHEET).substitute(
         **COLORS,
         **RGB_TOKENS,
@@ -555,4 +632,5 @@ def build_stylesheet() -> str:
 
 def apply_theme() -> None:
     """Inject the stylesheet. Call once per rerun, before anything renders."""
+    set_theme(_theme_name())
     st.markdown(build_stylesheet(), unsafe_allow_html=True)
