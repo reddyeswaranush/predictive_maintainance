@@ -13,7 +13,7 @@ from typing import Any, Literal
 import pandas as pd
 import streamlit as st
 
-from frontend import api, state
+from frontend import api, state, theme
 from frontend.transforms import ALERT_STATES, HEALTHY_STATES
 
 PRODUCT_NAME = "FactoryOps"
@@ -281,8 +281,40 @@ def data_table(
     if height is not None and len(frame) > _rows_that_fit(height):
         options["height"] = height
 
+    styled_frame = (
+        frame.style
+        .set_table_styles(
+            [
+                {
+                    "selector": "th",
+                    "props": [
+                        ("background-color", theme.COLORS["accent"]),
+                        ("color", "#FFFFFF"),
+                        ("font-weight", "700"),
+                        ("border-color", theme.COLORS["border_strong"]),
+                    ],
+                },
+                {
+                    "selector": "td",
+                    "props": [
+                        ("background-color", theme.COLORS["surface"]),
+                        ("color", theme.COLORS["text"]),
+                        ("border-color", theme.COLORS["border"]),
+                    ],
+                },
+            ]
+        )
+        .set_properties(
+            **{
+                "background-color": theme.COLORS["surface"],
+                "color": theme.COLORS["text"],
+                "border-color": theme.COLORS["border"],
+            }
+        )
+    )
+
     st.dataframe(
-        frame,
+        styled_frame,
         column_config=column_config or {},
         width="stretch",
         hide_index=True,

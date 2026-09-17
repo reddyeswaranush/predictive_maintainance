@@ -577,8 +577,26 @@ div[data-testid='stDataFrame'], div[data-testid='stDataFrameResizable'] {
     border-radius: var(--radius-md);
     overflow: hidden;
     transition: border-color var(--speed) var(--ease);
+    background: rgba(var(--surface-rgb), .24);
 }
 div[data-testid='stDataFrame']:hover { border-color: var(--border-strong); }
+div[data-testid='stDataFrame'] thead tr th,
+div[data-testid='stDataFrameResizable'] thead tr th {
+    background: rgba(var(--accent-rgb), .12) !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border) !important;
+    font-weight: 700 !important;
+}
+div[data-testid='stDataFrame'] tbody tr td,
+div[data-testid='stDataFrameResizable'] tbody tr td {
+    background: rgba(var(--surface-rgb), .08) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+div[data-testid='stDataFrame'] tbody tr:hover td,
+div[data-testid='stDataFrameResizable'] tbody tr:hover td {
+    background: rgba(var(--accent-rgb), .06) !important;
+}
 
 /* Expander */
 details, div[data-testid='stExpander'] {
