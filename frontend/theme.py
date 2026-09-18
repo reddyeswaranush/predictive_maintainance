@@ -21,6 +21,9 @@ LIGHT_COLORS: dict[str, str] = {
     "surface": "#FFFDFC",
     "surface_raised": "#F6F1EF",
     "surface_hover": "#EEE6E3",
+    "field": "#FFFDFC",
+    "field_border": "rgba(var(--slate-rgb), 0.16)",
+    "field_text": "#3F2526",
 
     "border": "rgba(var(--slate-rgb), 0.16)",
     "border_strong": "rgba(var(--slate-rgb), 0.32)",
@@ -39,25 +42,28 @@ LIGHT_COLORS: dict[str, str] = {
 }
 
 DARK_COLORS: dict[str, str] = {
-    "canvas": "#0B1320",
-    "surface": "#111C2A",
-    "surface_raised": "#172B3D",
-    "surface_hover": "#1B3551",
+    "canvas": "#1B1412",
+    "surface": "#251B18",
+    "surface_raised": "#30221E",
+    "surface_hover": "#3A2924",
+    "field": "#5C5958",
+    "field_border": "#927466",
+    "field_text": "#F3DDD0",
 
-    "border": "rgba(var(--slate-rgb), 0.24)",
-    "border_strong": "rgba(var(--slate-rgb), 0.46)",
+    "border": "rgba(var(--slate-rgb), 0.22)",
+    "border_strong": "rgba(var(--slate-rgb), 0.42)",
 
-    "text": "#EAF1FF",
-    "text_muted": "#B8C8DC",
-    "text_faint": "#7D94B0",
+    "text": "#F7EEE7",
+    "text_muted": "#D0BDB1",
+    "text_faint": "#A89082",
 
-    "accent": "#5B8DEF",
-    "accent_soft": "#8FB6FF",
-    "accent_deep": "#2F5AB4",
+    "accent": "#B9795D",
+    "accent_soft": "#D6A184",
+    "accent_deep": "#794936",
 
-    "success": "#5FB78B",
-    "warning": "#E7A85E",
-    "danger": "#D46969",
+    "success": "#70B083",
+    "warning": "#D8A05D",
+    "danger": "#D4776F",
 }
 
 THEME_PALETTES: dict[str, dict[str, str]] = {
@@ -107,7 +113,7 @@ def set_theme(theme_name: str | None = None) -> None:
         "danger_rgb": _rgb(COLORS["danger"]),
         "surface_rgb": _rgb(COLORS["surface_raised"]),
         "canvas_rgb": _rgb(COLORS["canvas"]),
-        "slate_rgb": "201, 189, 194" if theme_name == "light" or theme_name is None else "148, 171, 194",
+        "slate_rgb": "201, 189, 194" if theme_name == "light" or theme_name is None else "190, 165, 151",
     }
 
 
@@ -195,6 +201,9 @@ _STYLESHEET = """
     --surface: ${surface};
     --surface-raised: ${surface_raised};
     --surface-hover: ${surface_hover};
+    --field: ${field};
+    --field-border: ${field_border};
+    --field-text: ${field_text};
     --border: ${border};
     --border-strong: ${border_strong};
     --text: ${text};
@@ -241,7 +250,7 @@ _STYLESHEET = """
 }
 h1, h2, h3, h4, h5 {
     font-family: ${font_heading} !important;
-    color: var(--text) !important;
+    color: var(--field-text) !important;
     letter-spacing: -0.02em;
 }
 p, li, span, label { font-family: ${font_body}; }
@@ -530,17 +539,62 @@ a:hover { color: var(--accent-soft); }
 /* Inputs */
 .stTextInput input, .stNumberInput input, .stTextArea textarea,
 div[data-baseweb='select'] > div:first-child {
-    background: rgba(var(--canvas-rgb), .72) !important;
-    border: 1px solid var(--border) !important;
+    background: var(--field) !important;
+    border: 1px solid var(--field-border) !important;
     border-radius: var(--radius-sm) !important;
     color: var(--text) !important;
     transition: border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
 }
 .stTextInput input:hover, .stNumberInput input:hover, .stTextArea textarea:hover,
-div[data-baseweb='select'] > div:first-child:hover { border-color: var(--border-strong) !important; }
+div[data-baseweb='select'] > div:first-child:hover { border-color: var(--accent) !important; }
 .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.16) !important;
+}
+div[data-baseweb='select'] > div:first-child {
+    min-height: 2.5rem !important;
+    background: var(--field) !important;
+    color: var(--text) !important;
+    border-color: var(--field-border) !important;
+}
+div[data-baseweb='select'] > div:first-child > div {
+    background: transparent !important;
+    color: var(--field-text) !important;
+}
+div[data-baseweb='select'] > div:first-child span {
+    color: var(--field-text) !important;
+    opacity: 1 !important;
+}
+div[data-baseweb='select'] > div:first-child svg {
+    color: var(--field-text) !important;
+    fill: var(--field-text) !important;
+}
+div[data-testid='stSelectbox'] div[data-baseweb='select'] > div:first-child,
+div[data-testid='stMultiSelect'] div[data-baseweb='select'] > div:first-child,
+div[data-testid='stSelectbox'] div[data-baseweb='select'] > div:first-child > div,
+div[data-testid='stMultiSelect'] div[data-baseweb='select'] > div:first-child > div {
+    background: var(--field) !important;
+    border-color: var(--field-border) !important;
+}
+div[data-testid='stSelectbox'] div[data-baseweb='select'],
+div[data-testid='stMultiSelect'] div[data-baseweb='select'],
+div[data-testid='stSelectbox'] div[data-baseweb='select'] > div,
+div[data-testid='stMultiSelect'] div[data-baseweb='select'] > div {
+    background: var(--field) !important;
+    border-color: var(--field-border) !important;
+    border-radius: var(--radius-sm) !important;
+}
+div[data-testid='stSelectbox'] div[data-baseweb='select'] > div > div,
+div[data-testid='stMultiSelect'] div[data-baseweb='select'] > div > div {
+    background: transparent !important;
+}
+div[data-testid='stSelectbox'] div[data-baseweb='select'] > div:first-child:hover,
+div[data-testid='stMultiSelect'] div[data-baseweb='select'] > div:first-child:hover {
+    border-color: var(--accent) !important;
+}
+div[data-baseweb='select'] input {
+    color: var(--field-text) !important;
+    caret-color: var(--accent) !important;
 }
 .stTextInput label, .stNumberInput label, .stTextArea label,
 .stSelectbox label, .stMultiSelect label, .stRadio label {
@@ -548,7 +602,10 @@ div[data-baseweb='select'] > div:first-child:hover { border-color: var(--border-
     font-size: .8rem !important;
     font-weight: 600 !important;
 }
-input::placeholder, textarea::placeholder { color: var(--faint) !important; opacity: 1 !important; }
+input::placeholder, textarea::placeholder {
+    color: var(--field-text) !important;
+    opacity: .86 !important;
+}
 
 /* Tabs */
 .stTabs [data-baseweb='tab-list'] {
@@ -630,8 +687,112 @@ div[data-testid='stMetricValue'] { font-family: ${font_heading}; color: var(--te
 div[data-baseweb='popover'] [role='option'] { transition: background var(--speed) var(--ease); }
 div[data-baseweb='popover'] [role='option']:hover { background: rgba(var(--accent-rgb),.14) !important; }
 
+/* Select and multiselect menus render in a portal outside the page block. */
+div[data-baseweb='popover']:has([role='listbox']),
+div[data-baseweb='popover']:has([data-baseweb='menu']),
+div[data-baseweb='popover'] [role='listbox'],
+div[data-baseweb='popover'] [data-baseweb='menu'],
+div[data-baseweb='menu'],
+ul[role='listbox'] {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-card) !important;
+}
+div[data-baseweb='popover'] [role='listbox'] *,
+div[data-baseweb='popover'] [data-baseweb='menu'] *,
+div[data-baseweb='menu'] *,
+ul[role='listbox'] * {
+    color: var(--text) !important;
+}
+div[data-baseweb='popover'] [role='option'],
+div[data-baseweb='menu'] [role='option'],
+ul[role='listbox'] [role='option'] {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+}
+div[data-baseweb='popover'] [role='option']:hover,
+div[data-baseweb='menu'] [role='option']:hover,
+ul[role='listbox'] [role='option']:hover {
+    background: var(--surface-hover) !important;
+}
+
+/* Popover panel */
+div[data-baseweb='popover'],
+div[data-baseweb='popover'] > div,
+div[data-baseweb='popover'] > div > div,
+div[data-baseweb='popover'] [role='dialog'],
+div[data-testid='stPopoverBody'] {
+    background: linear-gradient(180deg, rgba(var(--surface-rgb),.96), rgba(var(--surface-rgb),.98)) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-card) !important;
+}
+div[data-baseweb='popover'] *,
+div[data-testid='stPopoverBody'] * {
+    color: var(--text);
+}
+div[data-baseweb='popover'] button,
+div[data-baseweb='popover'] .stButton > button,
+div[data-testid='stPopoverBody'] button,
+div[data-testid='stPopoverBody'] .stButton > button {
+    background: transparent !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+div[data-baseweb='popover'] .stButton > button[kind='primary'],
+div[data-testid='stPopoverBody'] .stButton > button[kind='primary'] {
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep)) !important;
+    color: #041020 !important;
+}
+
 /* Divider */
 hr { border-color: var(--border) !important; }
+
+/* Final BaseWeb filter override. Streamlit renders these controls with
+   inline/generated styles that otherwise override the shared field tokens. */
+div[data-testid='stSelectbox'] [data-baseweb='select'],
+div[data-testid='stMultiSelect'] [data-baseweb='select'],
+div[data-testid='stSelectbox'] [data-baseweb='select'] > div,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] > div,
+div[data-testid='stSelectbox'] [data-baseweb='select'] > div:first-child,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] > div:first-child {
+    background: var(--field) !important;
+    border-color: var(--field-border) !important;
+    box-shadow: inset 0 0 0 1px var(--field-border) !important;
+}
+div[data-testid='stSelectbox'] [data-baseweb='select'] span,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] span,
+div[data-testid='stSelectbox'] [data-baseweb='select'] input,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] input,
+div[data-testid='stSelectbox'] [data-baseweb='select'] svg,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] svg {
+    color: var(--field-text) !important;
+    fill: var(--field-text) !important;
+    -webkit-text-fill-color: var(--field-text) !important;
+}
+div[data-testid='stSelectbox'] [data-baseweb='select'] > div > div *,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] > div > div *,
+div[data-testid='stSelectbox'] [data-baseweb='select'] [data-baseweb='select-value'],
+div[data-testid='stMultiSelect'] [data-baseweb='select'] [data-baseweb='select-value'] {
+    color: var(--field-text) !important;
+    -webkit-text-fill-color: var(--field-text) !important;
+    opacity: 1 !important;
+}
+div[data-testid='stSelectbox'] [data-baseweb='select'] > div:first-child,
+div[data-testid='stMultiSelect'] [data-baseweb='select'] > div:first-child {
+    border: 1px solid var(--field-border) !important;
+    outline: 0 !important;
+}
+div[data-testid='stSelectbox'] [data-baseweb='select']:hover,
+div[data-testid='stMultiSelect'] [data-baseweb='select']:hover,
+div[data-testid='stSelectbox'] [data-baseweb='select']:focus-within,
+div[data-testid='stMultiSelect'] [data-baseweb='select']:focus-within {
+    border-color: var(--accent) !important;
+    box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgba(var(--accent-rgb), .12) !important;
+}
 </style>
 """
 
